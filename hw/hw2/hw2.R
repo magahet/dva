@@ -1,6 +1,7 @@
 library(GGally)
 library(ggplot2)
 data(midwest)
+data(diamonds)
 
 
 
@@ -82,8 +83,8 @@ q2 <- function() {
 q3 <- function() {
   # Plot normal distribution with different sample sizes
   par(mfrow=c(1,2))
-  boxplot(rnorm(100, 0, 1))
-  boxplot(rnorm(100000, 0, 1))
+  boxplot(c(0,1,2,3,4,5,6,7,8,9, 20))
+  boxplot(c(0,1,1,1,4,4,6,7,8,9, 21))
 }
 
 
@@ -100,7 +101,7 @@ get_sizes <- function(n, suffix) {
 
 q4_run_experiments <- function() {
   dev.off()
-  df <- data.frame(n=seq(100, 5000, by = 100))
+  df <- data.frame(n=seq(1000, 50000, by = 1000))
   for (suffix in c('ps', 'pdf', 'jpeg', 'png')) {
     df[suffix] <- sapply(df$n, get_sizes, suffix=suffix)
   }
@@ -109,10 +110,33 @@ q4_run_experiments <- function() {
 }
 
 q4_plot <- function(df) {
-  plot(df$n, df$jpeg, ylim=c(5550, 695610), type="o", col="red", xlab="Sample Size", ylab="File Size")
+  par(mfrow=c(2,1))
+  plot(runif(100), runif(100))
+  plot(runif(1000), runif(1000))
+  
+  par(mfrow=c(1,1))
+  # par(mfrow=c(2,1))
+  # plot(df$n, df$jpeg, ylim=c(4000, 2000000), log="xy", type="o", col="red", xlab="Sample Size", ylab="File Size", main="Filesize by sample size (log-log scale)")
+  # lines(x=df$n, y=df$png, type='o', col="blue")
+  # lines(x=df$n, y=df$pdf, type='o', col="green")
+  # lines(x=df$n, y=df$ps, type='o', col="black")
+  # legend(10000, 50000, legend=c('jpeg', 'png', 'ps', 'pdf'),
+  #        col=c("red", "blue", "black", "green"), lty=1:2, cex=0.8)
+  # 
+  # plot(df$n, df$jpeg, ylim=c(4000, 2000000), log="y", type="o", col="red", xlab="Sample Size", ylab="File Size", main="Filesize by sample size (log-linear scale)")
+  # lines(x=df$n, y=df$png, type='o', col="blue")
+  # lines(x=df$n, y=df$pdf, type='o', col="green")
+  # lines(x=df$n, y=df$ps, type='o', col="black")
+  # legend(20000, 50000, legend=c('jpeg', 'png', 'ps', 'pdf'),
+  #        col=c("red", "blue", "black", "green"), lty=1:2, cex=0.8)
+
+  plot(df$n, df$jpeg, ylim=c(5550, 1300000), type="o", col="red", xlab="Sample Size", ylab="File Size", main="Filesize by sample size")
   lines(x=df$n, y=df$png, type='o', col="blue")
   lines(x=df$n, y=df$pdf, type='o', col="green")
   lines(x=df$n, y=df$ps, type='o', col="black")
+  legend(1, 1300000, legend=c('jpeg', 'png', 'ps', 'pdf'),
+         col=c("red", "blue", "black", "green"), lty=1:2, cex=0.8)
+  
   # for (suffix in c('pdf', 'jpeg', 'png')) {
   #   lines(df$n, df[suffix], type='o')
   # }
@@ -121,6 +145,8 @@ q4_plot <- function(df) {
 
 # 5. Diamonds
 q5 <- function() {
+  df <- diamonds[c('color', 'carat', 'price')]
+  ggpairs(df)  
 }
 
 
@@ -129,6 +155,6 @@ q5 <- function() {
 # q1()
 # q2()
 # q3()
-#df <- q4_run_experiments()
-q4_plot(df)
+# df <- q4_run_experiments()
+# q4_plot(df)
 q5()
