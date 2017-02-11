@@ -5,78 +5,77 @@
 
 # 1. Professional Employment by State
 
-Assumptions:
-  - The question is asking for a comparison of the percentage of each state's adult population with professional employment.
-  - The number of adults with professional employment in each county is calculated as (midwest$percprof / 100) * midwest$popadults
-  - The number of adults with professional employment in each state is the sum of adults with professional employment in each county within that state.
-  - The percentage of adults with professional employment in each state is calculated as 100 * agg_by_state$proftotal / agg_by_state$popadults
-
-Figure \ref{percprof} shows the percentage of each state's adult population with professional employment. This shows that IL has the highest percentage at 7.5%, while WI has the lowest at 5.6%.
-
 ![percprof\label{percprof}](fig/percprof.png)
 
+Figure \ref{percprof} shows the distribution of midwest$percprof values across each state. This is the percentage of each county's adult population with professional employment. 
 
 
-# 2. School and College Education by State
+Observations:
+
+- The median value is fairly close between states; between 3% and 4% for each state.
+- OH has the lowest median at ~3%.
+- IN has the highest median at ~4%.
+- WI has counties with lower values than any other state.
+- MI has the county with the highest value, but IN has the highest value not considered an outlier.
+- Variance across states is similar, with IL having the lowest variance.
+- Every state's distribution is skewed upwards, indicating they each have counties with values significantly higher than the median. Each state also has a number of outlier counties with values greater the distribution range (IQR + 1.5 IQR length).
 
 
-## Relationship between HS diploma % and College diploma %
 
-Assumptions:
-  - The question is asking to explore the relationship between the UNALTERD values in midwest$perchsd and midwest$percollege NOT SEPERATED BY STATE.
+# 2. High School and College Education by State
 
-![college_hsd\label{college_hsd}](fig/college_hsd.png)
+## perchsd / percollege relationship
 
-Figure \ref{college_hsd} shows the relationship between the percentage of each county's adult population with a high school diploma and the percentage of those with a college diploma. Visually, we can observe a positive correlation in total and as well as for counties within each state. The correlation coefficient is 0.78 across the full dataset, which indicates a strong, possitive, relationship between the two.
+![hsd_college_log\label{hsd_college_log}](fig/hsd_college_log.png){#id .class width=75%}
 
-## Relationship between HS diploma and state
+Figure \ref{hsd_college_log} shows a scatter plot of perchsd over percollege. This shows the relationship between the percentage of each county's adult population with a high school diploma and the percentage of each county's adult population with a college diploma. The perchsd/percollege scatter plot is in log-linear scale.
 
-Assumptions:
-  - The question is asking to explore the relationship of the distribution of UNALTERD values in midwest$perchsd between the set of states.
+Observations:
+
+- The perchsd / percollege scatter plot visually appears to have a positive relationship.
+- The correlation coefficient of perchsd and log(percollege) indicates an exponential relationship between the two (0.81). It's possible there is linear or power relationship between the two, but the correlation coefficient is lower for both perchsd, percollege (0.78) and log(perchsd), log(percollege) (0.79).
 
 
-![hsd_box\label{hsd_box}](fig/hsd_box.png)
+## perchsd / state relationship
 
-The distribution of high school diploma percentages within each state is shown in Figure \ref{hsd_box}. We see that IL has the lowest median, WI has the highest. IL seems to have a wider range of values acrross it's counties. OH has the least variance among it's counties, but does have at least one county with a significantly lower value than the median (<25%). IL, OH, and WI are skewed to the left, indicating a number of lower valued counties pulling down the mean. IN and MI show the opposite skew.
+![perchsd_state\label{perchsd_state}](fig/perchsd_state.png){#id .class width=75%}
 
-Alternative Assumptions:
-  - The question is asking for a comparison of the percentage of each state's adult population with a high school diploma.
-  - The number of adults with a high school diploma in each county is calculated as (midwest$perchsd / 100) * midwest$popadults
-  - The number of adults with a high school diploma in each state is the sum of adults with a high school diploma in each county within that state.
-  - The percentage of adults with a high school diploma in each state is calculated as 100 * agg_by_state$hsdtotal / agg_by_state$popadults
-  
-![hsd_bar\label{hsd_bar}](fig/hsd_bar.png)
+Figure \ref{perchsd_state} shows the distribution of midwest$perchsd values across each state. This is the percentage of each county's adult population with a high school diploma. 
 
-Figure \ref{hsd_bar} shows the data aggregated at the state level. This view shows us much less information and makes each state's high school diploma percentages almost equal (all between 75% and 79%). Here WI has the highest overall value (78.6%) and IN the lowest (75.6%)
+Observations:
 
-## Relationship between College diploma and state
+- The median value is fairly close between states; between 73% and 76% for each state.
+- IL has the lowest median at ~73%.
+- WI has the highest median at ~76%.
+- WI has the county with the highest value (~89%), but IL has the highest value not considered an outlier (~87).
+- OH has the county with the lowest value (~46%), but IL has the lowest value not considered an outlier (~60%).
+- Variance across states is similar, with OH having the lowest variance and IL having the highest.
+- IL, OH, and WI distributions are skewed downward, indicating they each have counties with values significantly lower than the median. 
+- IN and MI distributions are skewed upward, indicating they each have counties with values significantly higher than the median. 
+- Each state has outlier counties with values both lower and higher than the distribution range (IQR +/- 1.5 IQR length).
 
-Assumptions:
-  - The question is asking to explore the relationship of the distribution of UNALTERD values in midwest$percollege between the set of states.
 
-![college_box\label{college_box}](fig/college_box.png)
+## percollege / state relationship
 
-The distribution of college diploma percentages within each state is shown in Figure \ref{college_box}. OH has the lowest median (~16%) and WI has the highest (~19%). Each state has many outlier counties with significantly higher values (between 30% and 50%). Each state, with the exception of WI, seem to be skewed to the right; indicating they contain a number of counties with exceptionally higher college diploma percentages.
+![percollege_state\label{percollege_state}](fig/percollege_state.png){#id .class width=75%}
 
-Alternative Assumptions:
-  - The question is asking for a comparison of the percentage of each state's adult population with a college diploma.
-  - The number of adults with a college diploma in each county is calculated as (midwest$percollege / 100) * midwest$popadults
-  - The number of adults with a college diploma in each state is the sum of adults with a college diploma in each county within that state.
-  - The percentage of adults with a college diploma in each state is calculated as 100 * agg_by_state$collegetotal / agg_by_state$popadults
-  
+Figure \ref{percollege_state} shows the distribution of midwest$percollege values across each state. This is the percentage of each county's adult population with a college diploma. 
 
-![college_bar\label{college_bar}](fig/college_bar.png)
+Observations:
 
-Figure \ref{college_bar} shows the data aggregated at the state level. IL has the highest overall value (27%) and IN the lowest (21%). Comparing the aggregated values to the distributions shows that the outlier values pull the aggregated college percentages up significantly.
-
+- The median value is fairly close between states; between 15% and 19% for each state.
+- OH has the lowest median at ~15%.
+- WI has the highest median at ~19%.
+- MI has the county with the highest value (~48%) and the highest value not considered an outlier (~31).
+- WI has the county with the lowest value (~8%).
+- Variance across states is similar, with IN having the lowest variance and MI having the highest.
+- All states' distributions are skewed upward, with the possible exception of WI.
+- Each state has outlier counties with values higher than the distribution range (IQR +/- 1.5 IQR length).
 
 
 # 3. Comparison of Visualization Techniques
 
 ## Box Plot elements and relationship to size of a dataset
-
-Assumptions:
-  - The question is asking to identify the elements of a box plot
 
 Box plots have the following elements:
 
@@ -85,52 +84,109 @@ Box plots have the following elements:
 - The whiskers show the range of values within the dataset. These lines are limited to 1.5x the length of the IQR.
 - Outliers are points that fall outside the range of the whiskers.
 
-Assumptions:
-  - The question is asking to identify how each element of a box plot can be influenced by the properties of a dataset.
+![box_example\label{box_example}](fig/box_example.png){#id .class width=75%}
 
-![box_norm\label{box_norm}](fig/box_norm.png)
-
-We can observe from Figure \ref{box_norm} how properties of a dataset affects each of these elements. The values for these two plots are:
+Figure \ref{box_example} shows how properties of a dataset affects each box plot element. The values for these two plots are:
 
 ```R
-  # lefthand plot
-  c(0,1,2,3,4,5,6,7,8,9, 20)
-  # righthand plot
-  c(0,1,1,1,4,4,6,7,8,9, 21)
+  # left-hand plot
+  c(0,1,2,3,4,5,6,7,8,9,20)
+  # right-hand plot
+  c(0,1,1,1,4,4,6,7,8,9,21)
 ```
 
-We see that the lefthand plot has a median line at 5, while the righthand is at 4. These are the respective median values from the datasets. The IQR for each differs in size as the lefthand plot has less variance. Also, the righthand plot is skewed up, as it has a number of lower values (0,1,1,1,1) who's mean in pulled up by a small number of high values. In contrast, the lefthand plot is more symetric. The lefthand plot wiskers are differing lengths due to the outlier value that influences the median, but is not included in the value range. This is due it it being beyond 1.5x the IQR length. The same is true of the outlier in the righthand plot. However the wiskers are identical between plots, as the range of values are the same when excluding the outliers.
+Observations:
+
+- The left-hand plot has a median line at 5, while the right-hand is at 4. These are the respective median values from the datasets.
+- The IQR for each differs in size as the left-hand plot has less variance in it's dataset.
+- The right-hand plot is skewed upward, as it has a number of lower values (0,1,1,1,1) who's mean in pulled up by a small number of high values. 
+- The left-hand plot is more symmetric.
+- The left-hand plot whiskers are differing lengths due to the outlier value pulling the IQR up.
+- The high value on the right-hand plot falls within the distribution range (1.5x the IQR from the IQR), so it is not considered an outlier. This extends the whisker all the way to the upper value.
+
 
 # Pros and cons of a Box Plot and a Histogram
 
-Histograms are good for visualizing the distribution of values in a dataset. This is especially helpful if the distribution is multi-modal. However, they do not make it easy to get summary information about the distribution. Box plots allow one to see distribution parameters (median, range, percentiles, and outliers). This is helpful when comparing the distribution properties between multiple datasets. Finally, box plots are better at showing the distributions skew and symmetry, but are not as good at showing the shape of the distribution (to estimate the underlying theoretical distribution).
+Histograms are good for visualizing the distribution of values in a dataset. This is especially helpful if the distribution is multi-modal. However, they do not make it easy to get summary information about the distribution. 
+
+Box plots allow one to see distribution parameters (median, range, percentiles, and outliers). This is helpful when comparing the distribution properties between multiple datasets. 
+
+Box plots are better at showing the distributions skew and symmetry, but are not as good at showing the shape of the distribution (to estimate the underlying theoretical distribution).
+
 
 # Data for which to use Histograms, Box Plots, and QQPlots
 
-Histograms are useful for visualizing the data's distribution. This is helpful when trying to gauge the type of underlying distribution the values could match. For example, we could see clearly whether data resembles a bimodal, uniform, or normal distribution, which we could not do with a box plot. As a qq-plot requires that you define the distribution to compare your data against, it is not a good choice when initially trying to identify a distribution.
+Histograms are useful for visualizing the data's distribution. This is helpful when trying to gauge the type of underlying distribution the values could match. For example, we could see clearly whether data resembles a bimodal, uniform, or normal distribution. A box plot loses this information. A qq-plot requires that you define the distribution to compare your data against. Therefore, it is not a good choice when initially trying to identify a matching distribution.
 
-Box plots are most useful when comparing data distribution statistics between multiple datasets or factors. The data from questions one and two are good examples, as we wanted to observe the differences between the range of values between the various states.
+Box plots are useful when comparing data distribution statistics between multiple datasets or factors. The data from questions one and two are good examples. They allow the observation of differences between the range of values between the various states.
 
-QQ-plots are most appropriate for comparing how the distribution of values compares to another distribution. This may include theoretical, statistical, distributions. For example, they would help to determine if the values in a dataset are normally distributed.
+QQ-plots are appropriate for comparing how a distribution of values compares to another distribution. This includes theoretical distributions. For example, they would help to determine if the values in a dataset are normally distributed, or if two datasets share a common distribution.
 
 
 # 4. Random Scatterplots
 
 ## Samples
-Assumptions:
-  - The question is asking to generate and plot a few scatter plots of a number of uniformily distributed values against the same number of uniformiliy distributed values.
-  - The question is asking to compare the filesize of these random scatter plots over a range of sample sizes when saved as ps, pdf, jpeg, and png files.
-  
+
 ![rand_scatter\label{rand_scatter}](fig/rand_scatter.png)
 
 Figure \ref{rand_scatter} shows two plots of random x and y values. The top plot has 100 random points. The lower plot has 1,000 random points.
 
-Figure \ref{filesize} shows the growth of the filesize for each filetype as the size of the sample being plotted increases. We see that jpeg and png files grow at first with the increase in sample size. This can be attributed to the raster formats' increase in pixels to encode as more samples are drawn. Eventually, the pixel density hits a point that more samples decrease the overall image complexity. From this point, additional samples decrease the filesize until a minimum size is reached to save a completely saturated plot image. Conversly, ps and pdf formats start out lower filesizes than the others, but quickly grow with the number of samples plotted. This is attributed to the increase in the number of objects that the vector image formats must encode. The growth for both of these formats is liniear O(n).
 
-This plot indicates that for plots under a certain number of points (about 30k for in this case) vector formats are more space efficient. Beyond that, vector images are not only less efficient, but also have unbounded growth.
+## Filesize over sample size
 
 ![filesize\label{filesize}](fig/filesize.png)
 
-## 
+Figure \ref{filesize} shows the growth of the file size for each format as the size of the sample being plotted increases. 
+
+Observations:
+- jpeg and png files initially grow with the increase in sample size. This can be attributed to the raster formats' increase in pixels to encode as more samples are drawn. Eventually, the pixel density hits a point that more samples decrease the overall image complexity (more black pixels). From this point, additional samples decrease the file size until a minimum size is reached to save a completely saturated plot image. 
+- ps and pdf formats start out with lower file sizes than the others, but grow linearly with the number of samples plotted. This is attributed to the increase in the number of objects that the vector image formats must encode. The growth for both of these formats is linear O(n).
+
+This plot indicates that for plots under a certain number of points (about 30k for in this case) vector formats are more space efficient. Beyond that, vector images are not only less efficient, but also have unbounded growth.
+
 
 # 5. Diamonds
+
+## Color Histogram
+
+![color_hist\label{color_hist}](fig/color_hist.png)
+
+Figure \ref{color_hist} shows a histogram for diamond$color.
+
+Observations:
+
+- It resembles a normal distribution, with the central color G as the mean value. Color is ordinal so this isn't just an effect of random ordering.
+- J color diamonds are comparatively rare, and G color diamonds are comparatively common.
+
+
+## Carat Histogram
+
+![carat_hist\label{carat_hist}](fig/carat_hist.png)
+
+Figure \ref{carat_hist} shows a stack histogram for diamond$carat with the intra-bin distribution colored by diamond$color.
+
+Observations:
+
+- A pattern appears to show popular carat values, with a downward tend as the carat size increases from one of these values. This could have something to do with diamonds often being cut to standard sizes. It's difficult to speculate on the cause of the downward trend from these standard sizes.
+- Proportions between colors seem to remain somewhat consistence for the various carat sizes. This can also be seen in the carat histogram with color facets in Figure \ref{diamond_ggpairs.png}.
+
+
+## Color Histogram
+
+![price_hist\label{price_hist}](fig/price_hist.png)
+
+Figure \ref{price_hist} shows a stack histogram for diamond$price with the intra-bin distribution colored by diamond$color.
+
+Observations:
+
+- The distribution shows the most common diamond price is around $750.
+- There is a non-linear decrease in availability as the price increases. The effect makes the availability of $12,000 diamonds not much different than $18,000 diamonds.
+- There is a slight uptick in availability for diamonds in the $4,000 to $5,000 range.
+- Proportions between colors are somewhat consistence for the various prices. This can also be seen in the prices histogram with color facets in Figure \ref{diamond_ggpairs.png}.
+
+
+## Relationships between color, carat, and price
+
+![diamond_ggpairs\label{diamond_ggpairs}](fig/diamond_ggpairs.png)
+
+Figure \ref{diamonds} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the pairwise comparison of price, carat, and color.
