@@ -151,46 +151,48 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 
 
 q5 <- function() {
-  diamonds_sample <- diamonds[sample(1:length(diamonds$price), 2000),]
-  print(ggpairs(diamonds_sample, columns=c('color', 'carat', 'price'), ggplot2::aes(colour=color), legend=1))
-  
-  print(ggplot(diamonds, aes(color, ..count.., fill=color)) +
-          geom_histogram(stat="count") +
-          ggtitle("Histogram of diamonds$color")
-        )
-  
-  print(ggplot(diamonds, aes(x=carat, fill=color)) +
-          geom_histogram(bins=200) +
-          scale_x_continuous(breaks=pretty(diamonds$carat, n=10), limits=c(NA, 2.5)) +
-          ggtitle("Histogram of diamond$carat")
-        )
-
-  print(ggplot(diamonds, aes(x=price, fill=color)) +
-          geom_histogram(bins=300) +
-          scale_x_continuous(breaks=pretty(diamonds$price, n=10)) +
-          ggtitle("Histogram of diamond$price")
-        )
-  
-  p1 <- ggplot(diamonds, aes(x=carat, y=price, color=color)) +
-          geom_point() +
-          ggtitle("price over carat by color (linear scale)")
-  p2 <- ggplot(diamonds, aes(x=carat, y=price, color=color)) +
-          geom_point() +
-          scale_y_log10(breaks=pretty(diamonds_sample$price, n=5)) +
-          scale_x_log10(breaks=pretty(diamonds_sample$carat, n=5)) +
-          stat_smooth(method="lm", se=F) +
-          ggtitle("price over carat by color (log-log scale)")
-  multiplot(p1, p2, cols=2)
-  print(summary(lm(log(diamonds$price)~log(diamonds$carat))))
+  # diamonds_sample <- diamonds[sample(1:length(diamonds$price), 2000),]
+  # print(ggpairs(diamonds_sample, columns=c('color', 'carat', 'price'), ggplot2::aes(colour=color), legend=1))
+  # 
+  # print(ggplot(diamonds, aes(color, ..count.., fill=color)) +
+  #         geom_histogram(stat="count") +
+  #         ggtitle("Histogram of diamonds$color")
+  #       )
+  # 
+  # print(ggplot(diamonds, aes(x=carat, fill=color)) +
+  #         geom_histogram(bins=200) +
+  #         scale_x_continuous(breaks=pretty(diamonds$carat, n=10), limits=c(NA, 2.5)) +
+  #         ggtitle("Histogram of diamond$carat")
+  #       )
+  # 
+  # print(ggplot(diamonds, aes(x=price, fill=color)) +
+  #         geom_histogram(bins=300) +
+  #         scale_x_continuous(breaks=pretty(diamonds$price, n=10)) +
+  #         ggtitle("Histogram of diamond$price")
+  #       )
+  # 
+  # p1 <- ggplot(diamonds, aes(x=carat, y=price, color=color)) +
+  #         geom_point() +
+  #         ggtitle("price over carat by color (linear scale)")
+  # p2 <- ggplot(diamonds, aes(x=carat, y=price, color=color)) +
+  #         geom_point() +
+  #         scale_y_log10(breaks=pretty(diamonds_sample$price, n=5)) +
+  #         scale_x_log10(breaks=pretty(diamonds_sample$carat, n=5)) +
+  #         stat_smooth(method="lm", se=F) +
+  #         ggtitle("price over carat by color (log-log scale)")
+  # multiplot(p1, p2, cols=2)
+  # print(summary(lm(log(diamonds$price)~log(diamonds$carat))))
   
   diamonds$price_carat_ratio = diamonds$price / diamonds$carat
+  agg = aggregate(diamonds$price_carat_ratio, by=list(diamonds$color), FUN=mean)
+  print(agg)
   # Box plot price/carat by color
-  pm <- ggplot(diamonds, aes(color, price_carat_ratio)) +
+  print(ggplot(diamonds, aes(color, price_carat_ratio)) +
     ggtitle('Price-carat ratio by color') +
     geom_boxplot() +
     coord_flip() +
     scale_x_discrete("color")
-  print(pm)
+    )
 }
 
 # Main

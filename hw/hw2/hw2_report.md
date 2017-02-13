@@ -178,7 +178,7 @@ Observations:
 - Proportions between colors seem to remain somewhat consistence for the various carat sizes besides color J. This can also be seen in the discrete carat histogram with color facets in Figure \ref{diamond_ggpairs}.
 
 
-## Color Histogram
+## Price Histogram
 
 ![price_hist\label{price_hist}](fig/price_hist.png)
 
@@ -189,6 +189,7 @@ Observations:
 - The distribution shows the most common diamond price is around $750.
 - There is a non-linear decrease in availability as the price increases. The effect makes the availability of $12,000 diamonds not much different than $18,000 diamonds.
 - There is a slight uptick in availability for diamonds in the $4,000 to $5,000 range.
+- There is a small price range with a noticeable gap in available (~$1,500).
 - Proportions between colors are somewhat consistence for the various prices. This can also be seen in the prices histogram with color facets in Figure \ref{diamond_ggpairs}.
 
 
@@ -197,7 +198,7 @@ Observations:
 ![diamond_ggpairs\label{diamond_ggpairs}](fig/diamond_ggpairs.png)
 
 
-Figure \ref{diamond_ggpairs} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the pairwise comparison of price, carat, and color.
+Figure \ref{diamond_ggpairs} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the three way comparison of price, carat, and color.
 
 Observations:
 
@@ -217,4 +218,6 @@ Observations:
 
 - Both plots show striations of color, indicating a common relationship between price and carat within each color; and a separation in the values of each (price, carat) between each color.
 - The log-log scale plot shows a positive linear relationship between log(price) and log(carat) (Adjusted R-Squared: 0.93). This indicates a positive power relationship between the two.
-- The regression lines on the log-log plot show a clearer view of the relationship between colors. The shifted lines indicate that the price per carat ratio is higher for D color diamonds. This means that statistically, a D color diamond would have a higher price than a J diamond of similar size (carats).
+- Figure \ref{price_carat_ratio} shows that, although the median and IQR of the price-carat ratio is fairly close between colors, the availability of higher price to carat diamonds seems to correlate with color. As you move from J to D color diamonds, the highest price to carat diamonds available in that color increases.
+
+![price_carat_ratio\label{price_carat_ratio}](fig/price_carat_ratio.png)
