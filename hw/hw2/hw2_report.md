@@ -7,7 +7,7 @@
 
 **This answer uses interpretation B**
 
-![percprof\label{percprof}](fig/percprof.png)
+![percprof\label{percprof}](fig/percprof.png){#id .class width=60%}
 
 Figure \ref{percprof} shows the distribution of midwest\$percprof values across each state. This is the percentage of each county's adult population with professional employment. 
 
@@ -30,7 +30,7 @@ Observations:
 
 ## perchsd / percollege relationship
 
-![hsd_college_log\label{hsd_college_log}](fig/hsd_college_log.png){#id .class width=75%}
+![hsd_college_log\label{hsd_college_log}](fig/hsd_college_log.png){#id .class width=60%}
 
 Figure \ref{hsd_college_log} shows a scatter plot of perchsd over percollege. This shows the relationship between the percentage of each county's adult population with a high school diploma and the percentage of each county's adult population with a college diploma. The perchsd/percollege scatter plot is in log-linear scale.
 
@@ -42,7 +42,7 @@ Observations:
 
 ## perchsd / state relationship
 
-![perchsd_state\label{perchsd_state}](fig/perchsd_state.png){#id .class width=75%}
+![perchsd_state\label{perchsd_state}](fig/perchsd_state.png){#id .class width=60%}
 
 Figure \ref{perchsd_state} shows the distribution of midwest\$perchsd values across each state. This is the percentage of each county's adult population with a high school diploma. 
 
@@ -61,7 +61,7 @@ Observations:
 
 ## percollege / state relationship
 
-![percollege_state\label{percollege_state}](fig/percollege_state.png){#id .class width=75%}
+![percollege_state\label{percollege_state}](fig/percollege_state.png){#id .class width=60%}
 
 Figure \ref{percollege_state} shows the distribution of midwest\$percollege values across each state. This is the percentage of each county's adult population with a college diploma. 
 
@@ -88,7 +88,7 @@ Box plots have the following elements:
 - The whiskers show the range of values within the dataset. These lines are limited to 1.5x the length of the IQR.
 - Outliers are points that fall outside the range of the whiskers.
 
-![box_example\label{box_example}](fig/box_example.png){#id .class width=75%}
+![box_example\label{box_example}](fig/box_example.png){#id .class width=40%}
 
 Figure \ref{box_example} shows how statistical properties of a dataset affects each box plot element. The values for these two plots are:
 
@@ -131,14 +131,14 @@ QQ-plots are appropriate for comparing how a distribution of values compares to 
 
 ## Samples
 
-![rand_scatter\label{rand_scatter}](fig/rand_scatter.png)
+![rand_scatter\label{rand_scatter}](fig/rand_scatter.png){#id .class width=50%}
 
 Figure \ref{rand_scatter} shows two plots of random x and y values. The top plot has 100 random points. The lower plot has 1,000 random points.
 
 
 ## Filesize over sample size
 
-![filesize\label{filesize}](fig/filesize.png){#id .class width=75%}
+![filesize\label{filesize}](fig/filesize.png){#id .class width=50%}
 
 Figure \ref{filesize} shows the growth of the file size for each format as the size of the sample being plotted increases. 
 
@@ -153,7 +153,7 @@ Observations:
 
 ## Color Histogram
 
-![color_hist\label{color_hist}](fig/color_hist.png){#id .class width=50%}
+![color_hist\label{color_hist}](fig/color_hist.png){#id .class width=45%}
 
 Figure \ref{color_hist} shows a histogram for diamond\$color.
 
@@ -165,7 +165,7 @@ Observations:
 
 ## Carat Histogram
 
-![carat_hist\label{carat_hist}](fig/carat_hist.png)
+![carat_hist\label{carat_hist}](fig/carat_hist.png){#id .class width=60%}
 
 Figure \ref{carat_hist} shows a stack histogram for diamond\$carat with the intra-bin distribution colored by diamond\$color.
 
@@ -180,7 +180,7 @@ Observations:
 
 ## Price Histogram
 
-![price_hist\label{price_hist}](fig/price_hist.png)
+![price_hist\label{price_hist}](fig/price_hist.png){#id .class width=50%}
 
 Figure \ref{price_hist} shows a stack histogram for diamond\$price with the intra-bin distribution colored by diamond\$color.
 
@@ -189,13 +189,13 @@ Observations:
 - The distribution shows the most common diamond price is around $750.
 - There is a non-linear decrease in availability as the price increases. The effect makes the availability of $12,000 diamonds not much different than $18,000 diamonds.
 - There is a slight uptick in availability for diamonds in the $4,000 to $5,000 range.
-- There is a small price range with a noticeable gap in available (~$1,500).
+- There is a small price range with a noticeable gap in availability (~$1,500).
 - Proportions between colors are somewhat consistence for the various prices. This can also be seen in the prices histogram with color facets in Figure \ref{diamond_ggpairs}.
 
 
 ## Relationships between color, carat, and price
 
-![diamond_ggpairs\label{diamond_ggpairs}](fig/diamond_ggpairs.png)
+![diamond_ggpairs\label{diamond_ggpairs}](fig/diamond_ggpairs.png){#id .class width=75%}
 
 
 Figure \ref{diamond_ggpairs} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the three way comparison of price, carat, and color.
@@ -209,7 +209,7 @@ Observations:
 - Distribution of values for both carat and price are similar across each color. Rankings for median values is the same between price and carat (D low to J high).
 
 
-![price_carat_color\label{price_carat_color}](fig/price_carat_color.png)
+![price_carat_color\label{price_carat_color}](fig/price_carat_color.png){#id .class width=75%}
 
 
 Figure \ref{price_carat_color} shows a scatter plot of price over carat with dots colored by diamond\$color. The left plot is on linear scale. The right plot is on log-log scale.
@@ -220,4 +220,4 @@ Observations:
 - The log-log scale plot shows a positive linear relationship between log(price) and log(carat) (Adjusted R-Squared: 0.93). This indicates a positive power relationship between the two.
 - Figure \ref{price_carat_ratio} shows that, although the median and IQR of the price-carat ratio is fairly close between colors, the availability of higher price to carat diamonds seems to correlate with color. As you move from J to D color diamonds, the highest price to carat diamonds available in that color increases.
 
-![price_carat_ratio\label{price_carat_ratio}](fig/price_carat_ratio.png)
+![price_carat_ratio\label{price_carat_ratio}](fig/price_carat_ratio.png){#id .class width=60%}
