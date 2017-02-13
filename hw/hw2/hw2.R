@@ -161,7 +161,6 @@ q5 <- function() {
   
   print(ggplot(diamonds, aes(x=carat, fill=color)) +
           geom_histogram(bins=200) +
-          xlim(0, 2.5) +
           scale_x_continuous(breaks=pretty(diamonds$carat, n=10), limits=c(NA, 2.5)) +
           ggtitle("Histogram of diamond$carat")
         )
@@ -183,6 +182,15 @@ q5 <- function() {
           ggtitle("price over carat by color (log-log scale)")
   multiplot(p1, p2, cols=2)
   print(summary(lm(log(diamonds$price)~log(diamonds$carat))))
+  
+  diamonds$price_carat_ratio = diamonds$price / diamonds$carat
+  # Box plot price/carat by color
+  pm <- ggplot(diamonds, aes(color, price_carat_ratio)) +
+    ggtitle('Price-carat ratio by color') +
+    geom_boxplot() +
+    coord_flip() +
+    scale_x_discrete("color")
+  print(pm)
 }
 
 # Main
@@ -191,5 +199,4 @@ q5 <- function() {
 # q3()
 # df <- q4_run_experiments()
 # q4_plot(df)
-# q4_measure_growth(df)
 q5()

@@ -5,9 +5,11 @@
 
 # 1. Professional Employment by State
 
+**This answer uses interpretation B**
+
 ![percprof\label{percprof}](fig/percprof.png)
 
-Figure \ref{percprof} shows the distribution of midwest$percprof values across each state. This is the percentage of each county's adult population with professional employment. 
+Figure \ref{percprof} shows the distribution of midwest\$percprof values across each state. This is the percentage of each county's adult population with professional employment. 
 
 
 Observations:
@@ -23,6 +25,8 @@ Observations:
 
 
 # 2. High School and College Education by State
+
+**This answer uses interpretation B**
 
 ## perchsd / percollege relationship
 
@@ -40,7 +44,7 @@ Observations:
 
 ![perchsd_state\label{perchsd_state}](fig/perchsd_state.png){#id .class width=75%}
 
-Figure \ref{perchsd_state} shows the distribution of midwest$perchsd values across each state. This is the percentage of each county's adult population with a high school diploma. 
+Figure \ref{perchsd_state} shows the distribution of midwest\$perchsd values across each state. This is the percentage of each county's adult population with a high school diploma. 
 
 Observations:
 
@@ -59,7 +63,7 @@ Observations:
 
 ![percollege_state\label{percollege_state}](fig/percollege_state.png){#id .class width=75%}
 
-Figure \ref{percollege_state} shows the distribution of midwest$percollege values across each state. This is the percentage of each county's adult population with a college diploma. 
+Figure \ref{percollege_state} shows the distribution of midwest\$percollege values across each state. This is the percentage of each county's adult population with a college diploma. 
 
 Observations:
 
@@ -86,7 +90,7 @@ Box plots have the following elements:
 
 ![box_example\label{box_example}](fig/box_example.png){#id .class width=75%}
 
-Figure \ref{box_example} shows how properties of a dataset affects each box plot element. The values for these two plots are:
+Figure \ref{box_example} shows how statistical properties of a dataset affects each box plot element. The values for these two plots are:
 
 ```R
   # left-hand plot
@@ -100,7 +104,7 @@ Observations:
 - The left-hand plot has a median line at 5, while the right-hand is at 4. These are the respective median values from the datasets.
 - The IQR for each differs in size as the left-hand plot has less variance in it's dataset.
 - The right-hand plot is skewed upward, as it has a number of lower values (0,1,1,1,1) who's mean in pulled up by a small number of high values. 
-- The left-hand plot is more symmetric.
+- The left-hand plot is more symmetric. Values not considered outliers are evenly distributed.
 - The left-hand plot whiskers are differing lengths due to the outlier value pulling the IQR up.
 - The high value on the right-hand plot falls within the distribution range (1.5x the IQR from the IQR), so it is not considered an outlier. This extends the whisker all the way to the upper value.
 
@@ -134,24 +138,24 @@ Figure \ref{rand_scatter} shows two plots of random x and y values. The top plot
 
 ## Filesize over sample size
 
-![filesize\label{filesize}](fig/filesize.png)
+![filesize\label{filesize}](fig/filesize.png){#id .class width=75%}
 
 Figure \ref{filesize} shows the growth of the file size for each format as the size of the sample being plotted increases. 
 
 Observations:
+
 - jpeg and png files initially grow with the increase in sample size. This can be attributed to the raster formats' increase in pixels to encode as more samples are drawn. Eventually, the pixel density hits a point that more samples decrease the overall image complexity (more black pixels). From this point, additional samples decrease the file size until a minimum size is reached to save a completely saturated plot image. 
 - ps and pdf formats start out with lower file sizes than the others, but grow linearly with the number of samples plotted. This is attributed to the increase in the number of objects that the vector image formats must encode. The growth for both of these formats is linear O(n).
-
-This plot indicates that for plots under a certain number of points (about 30k for in this case) vector formats are more space efficient. Beyond that, vector images are not only less efficient, but also have unbounded growth.
+- This graph indicates that for plots under a certain number of points (about 30k for in this case) vector formats are more space efficient. Beyond that, vector images are not only less efficient, but also have unbounded growth.
 
 
 # 5. Diamonds
 
 ## Color Histogram
 
-![color_hist\label{color_hist}](fig/color_hist.png)
+![color_hist\label{color_hist}](fig/color_hist.png){#id .class width=50%}
 
-Figure \ref{color_hist} shows a histogram for diamond$color.
+Figure \ref{color_hist} shows a histogram for diamond\$color.
 
 Observations:
 
@@ -163,30 +167,54 @@ Observations:
 
 ![carat_hist\label{carat_hist}](fig/carat_hist.png)
 
-Figure \ref{carat_hist} shows a stack histogram for diamond$carat with the intra-bin distribution colored by diamond$color.
+Figure \ref{carat_hist} shows a stack histogram for diamond\$carat with the intra-bin distribution colored by diamond\$color.
 
 Observations:
 
-- A pattern appears to show popular carat values, with a downward tend as the carat size increases from one of these values. This could have something to do with diamonds often being cut to standard sizes. It's difficult to speculate on the cause of the downward trend from these standard sizes.
-- Proportions between colors seem to remain somewhat consistence for the various carat sizes. This can also be seen in the carat histogram with color facets in Figure \ref{diamond_ggpairs.png}.
+- A pattern appears to show a number of popular carat values, with a downward tend as the carat value increases from one of these. This could have something to do with diamonds often being cut to standard sizes. It's difficult to speculate on the cause of the downward trend from these standard sizes.
+- There is an overall trend of lower availability for diamonds with higher carats.
+- Diamonds below ~0.3 carats are also more rare.
+- Figure \ref{diamond_ggpairs} (carat continuous histogram) shows the most common size is just under 0.5 carats overall, and for each color besides J. J color diamonds are most commonly just over 1 carat.
+- Proportions between colors seem to remain somewhat consistence for the various carat sizes besides color J. This can also be seen in the discrete carat histogram with color facets in Figure \ref{diamond_ggpairs}.
 
 
 ## Color Histogram
 
 ![price_hist\label{price_hist}](fig/price_hist.png)
 
-Figure \ref{price_hist} shows a stack histogram for diamond$price with the intra-bin distribution colored by diamond$color.
+Figure \ref{price_hist} shows a stack histogram for diamond\$price with the intra-bin distribution colored by diamond\$color.
 
 Observations:
 
 - The distribution shows the most common diamond price is around $750.
 - There is a non-linear decrease in availability as the price increases. The effect makes the availability of $12,000 diamonds not much different than $18,000 diamonds.
 - There is a slight uptick in availability for diamonds in the $4,000 to $5,000 range.
-- Proportions between colors are somewhat consistence for the various prices. This can also be seen in the prices histogram with color facets in Figure \ref{diamond_ggpairs.png}.
+- Proportions between colors are somewhat consistence for the various prices. This can also be seen in the prices histogram with color facets in Figure \ref{diamond_ggpairs}.
 
 
 ## Relationships between color, carat, and price
 
 ![diamond_ggpairs\label{diamond_ggpairs}](fig/diamond_ggpairs.png)
 
-Figure \ref{diamonds} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the pairwise comparison of price, carat, and color.
+
+Figure \ref{diamond_ggpairs} shows the ggpairs plot of a sample (1,000 rows) from the diamond dataset. The result is a matrix of plots that help with the pairwise comparison of price, carat, and color.
+
+Observations:
+
+- There is a strong positive linear correlation between price and carat for each color separately, and combined.
+- The price over carat plot shows a greater than linear curve.
+- The price over carat plot shows an increase in price variance for larger carat sizes.
+- There are clusters of carat sizes, especially after values greater than 1.5.
+- Distribution of values for both carat and price are similar across each color. Rankings for median values is the same between price and carat (D low to J high).
+
+
+![price_carat_color\label{price_carat_color}](fig/price_carat_color.png)
+
+
+Figure \ref{price_carat_color} shows a scatter plot of price over carat with dots colored by diamond\$color. The left plot is on linear scale. The right plot is on log-log scale.
+
+Observations:
+
+- Both plots show striations of color, indicating a common relationship between price and carat within each color; and a separation in the values of each (price, carat) between each color.
+- The log-log scale plot shows a positive linear relationship between log(price) and log(carat) (Adjusted R-Squared: 0.93). This indicates a positive power relationship between the two.
+- The regression lines on the log-log plot show a clearer view of the relationship between colors. The shifted lines indicate that the price per carat ratio is higher for D color diamonds. This means that statistically, a D color diamond would have a higher price than a J diamond of similar size (carats).
