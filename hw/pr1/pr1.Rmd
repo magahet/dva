@@ -120,7 +120,19 @@ Now investigate the distribution of `Runtime` values and how it changes over yea
 
 ```{r}
 # TODO: Investigate the distribution of Runtime values and how it varies by Year and Budget
-ggplot(df, aes(x=Runtime))
+set.seed(2)
+df$decade = factor(df$Year - (df$Year %% 10))
+# ggpairs(df[c('Runtime', 'decade', 'Budget')])
+df_sample = df[sample(nrow(df), 5000),]
+runtime_decade = ggplot(df_sample, aes(decade, Runtime, na.rm=TRUE)) +
+  geom_boxplot() +
+  ylim(0, 250)
+print(runtime_decade)
+runtime_budget = ggplot(df_sample, aes(Budget, Runtime, na.rm=TRUE)) +
+  geom_point() +
+  xlim(0, 100000000) +
+  ylim(0, 200)
+print(runtime_budget)
 ```
 
 _Feel free to insert additional code chunks as necessary._
@@ -128,6 +140,11 @@ _Feel free to insert additional code chunks as necessary._
 **Q**: Comment on the distribution as well as relationships. Are there any patterns or trends that you can observe?
 
 **A**: 
+- Median runtimes increase over each decade, with a slight drop in the 2000s.
+- There are many outliers, with some Runtimes over 10 hours!
+- IQR decreases over the decades, while outliers increase. Indicates many more movies being made at or near the median in later dacades. Runtimes had greater variance between 1910 and 1950.
+
+- There does not seem to be a corelation between Runtime and Budget.
 
 ## 3. Encode `Genre` column
 
