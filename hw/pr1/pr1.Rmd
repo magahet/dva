@@ -67,12 +67,15 @@ Load any R packages that you will need to use. You can come back to this chunk, 
 library(ggplot2)
 library(GGally)
 library(dplyr)
+library(qdap)
+library(reshape2)
 ```
 
 If you are loading any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
 
 **Non-standard packages used**:
 - dplyr
+- qdap
 
 # Tasks
 
@@ -154,23 +157,44 @@ For example, if there are a total of 3 genres: Drama, Comedy, and Action, a movi
 
 ```{r}
 # TODO: Replace Genre with a collection of binary columns
+freqs = t(wfm(df$Genre, 1:nrow(df)))
+df = data.frame(df, freqs, check.names = FALSE)
+df[c('Genre', 'na')] = NULL
 ```
 
 Plot the relative proportions of movies having the top 10 most common genres.
 
 ```{r}
 # TODO: Select movies from top 10 most common genres and plot their relative proportions
+genres = colSums(subset(df, select=action:western))
+top_genres = sort(genres, decreasing = TRUE)[1:10]
+barplot(top_genres, las=2, ylab="# of movies", xlab="genre")
 ```
 
 Examine how the distribution of `Runtime` changes across genres for the top 10 most common genres.
 
 ```{r}
 # TODO: Plot Runtime distribution for top 10 most common genres
+genre_select <- function(genre_query) {
+  genre_sample = df[df[genre_query] == 1, 'Runtime']
+  return(genre_sample)
+}
+r = sapply(names(top_genres), genre_select)
+runtimes = melt(r)
+colnames(runtimes) <- c('Runtime', 'Genre')
+runtimes_sample = runtimes[sample(nrow(runtimes), 5000),]
+ggplot(runtimes_sample, aes(reorder(Genre, -Runtime, median), Runtime)) +
+  geom_boxplot() +
+  coord_flip() +
+  scale_x_discrete("Genre")
 ```
 
 **Q**: Describe the interesting relationship(s) you observe. Are there any expected or unexpected trends that are evident?
 
 **A**: 
+- Unsurprisingly, movies in the short and animation genres have a significantly shorter median runtime.
+- Documentaries seem to have a large variance in runtimes, with a few large outliers. The median runtime for documentaries are shortern than most other genres.
+- All other genres seem to follow a similar distribution, with median runtimes just under 100 minutes, small variance, and a number of outliers.
 
 ## 4. Eliminate mismatched rows
 
@@ -178,13 +202,45 @@ The dataframe was put together by merging two different sources of data and it i
 
 Find and remove all rows where you suspect a merge error occurred based on a mismatch between these two variables. To make sure subsequent analysis and modeling work well, avoid removing more than 10% of the rows that have a `Gross` value present.
 
+
 ```{r}
 # TODO: Remove rows with Released-Year mismatch
+year_delta <- function(year, date) {
+  if (is.na(year) || is.na(date)) {
+    return(NA)
+  } else if (year == year(date)) {
+    return(0)
+  }
+  date = as.Date(date)
+  year_start = as.Date(ISOdate(year, 1, 1))
+  year_end = as.Date(ISOdate(year, 12, 31))
+  diff = min(abs(c(date - year_start, date - year_end)))
+  return(diff)
+}
+before_count = nrow(df)
+# Threshold of days between Release and Year
+df$DaysDiff = mapply(year_delta, df$Year, df$Released)
+a = subset(df, select=c('Year', 'Released', 'DaysDiff'))
+```
+
+```{r}
+threshold = 67
+df_removed = subset(df, DaysDiff > threshold)
+df_remaining = subset(df, DaysDiff <= threshold)
+print(nrow(df_removed))
+total_gross_count = nrow(subset(df, !is.na(Gross)))
+removed_gross_count = nrow(subset(df_removed, !is.na(Gross)))
+sprintf("percent of rows with Gross value removed: %f", 100 * removed_gross_count/total_gross_count)
 ```
 
 **Q**: What is your precise removal logic and how many rows did you end up removing?
 
 **A**: 
+1. If Year matches the year portion of Released, keep row.
+2. If Released date is within 67 days of the first or last date of the Year, keep row.
+
+- Removes 4,318 rows.
+- Removes 10% of rows with non NA values for Gross.
 
 ## 5. Explore `Gross` revenue
 
@@ -194,6 +250,10 @@ Note: To get a meaningful relationship, you may have to partition the movies int
 
 ```{r}
 # TODO: Investigate if Gross Revenue is related to Budget, Runtime or Genre
+df_long = melt(df, variable.name="Genre", measure.vars=names(genres))
+df_long = subset(df_long, value == 1)
+df_long$value = NULL
+ggpairs(df_long, columns=c('Gross', 'Budget', 'Runtime'), ggplot2::aes(color=Genre))
 ```
 
 **Q**: Did you find any observable relationships or combinations of Budget/Runtime/Genre that result in high Gross revenue? If you divided the movies into different subsets, you may get different answers for them - point out interesting ones.
