@@ -422,13 +422,30 @@ Come up with two new insights (backed up by data and graphs) that is expected. H
 ```{r}
 # TODO: Find and illustrate two expected insights
 freqs = t(wfm(df$Language, 1:nrow(df)))
+freqs[freqs > 1] = 1
 top_n_lang = sort(colSums(freqs), decreasing = TRUE)[1:10]
-df = data.frame(df, freqs[,names(top_n_lang)])
+df = data.frame(df, freqs[, names(top_n_lang)])
+# df[names(top_n_lang) > 1] <- 1
+
+df_sample = df[sample(nrow(df), 5000),]
 
 ggplot(df_sample, aes(factor(english), Gross)) +
   geom_boxplot() +
   ylim(0, 3e+8)
+```
 
+```{r}
+# DVD delay
+df$DVDdelay = df$DVD - df$Released
+
+df_sample = subset(df, Year >= 1995)
+
+ggplot(df_sample, aes(factor(Year), DVDdelay)) +
+  geom_boxplot() +
+  ylim(0, 4000) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+fivenum(df_sample[df_sample$Year == 2016, 'DVDdelay'])
 ```
 
 
@@ -439,7 +456,7 @@ ggplot(df_sample, aes(factor(english), Gross)) +
 
 **Q**: Expected insight #2.
 
-**A**: 
+**A**: The distribution in delay between theater release and DVD release have decrease steadily since DVDs were first created in 1995.
 
 
 ## 10. Unexpected insight
