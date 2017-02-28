@@ -69,6 +69,7 @@ library(GGally)
 library(dplyr)
 library(qdap)
 library(reshape2)
+library(stringr)
 ```
 
 If you are loading any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
@@ -76,6 +77,8 @@ If you are loading any non-standard packages (ones that have not been discussed 
 **Non-standard packages used**:
 - dplyr
 - qdap
+- reshape2
+- stringr
 
 # Tasks
 
@@ -193,7 +196,7 @@ ggplot(runtimes_sample, aes(reorder(Genre, -Runtime, median), Runtime)) +
 
 **A**: 
 - Unsurprisingly, movies in the short and animation genres have a significantly shorter median runtime.
-- Documentaries seem to have a large variance in runtimes, with a few large outliers. The median runtime for documentaries are shortern than most other genres.
+- Documentaries seem to have a large variance in runtimes, with a few large outliers. The median runtime for documentaries are shorter than most other genres.
 - All other genres seem to follow a similar distribution, with median runtimes just under 100 minutes, small variance, and a number of outliers.
 
 ## 4. Eliminate mismatched rows
@@ -205,15 +208,15 @@ Find and remove all rows where you suspect a merge error occurred based on a mis
 
 ```{r}
 # TODO: Remove rows with Released-Year mismatch
-year_delta <- function(year, date) {
-  if (is.na(year) || is.na(date)) {
+year_delta <- function(year_, date) {
+  if (is.na(year_) || is.na(date)) {
     return(NA)
-  } else if (year == year(date)) {
+  } else if (year_ == as.numeric(format(date, "%Y"))) {
     return(0)
   }
   date = as.Date(date)
-  year_start = as.Date(ISOdate(year, 1, 1))
-  year_end = as.Date(ISOdate(year, 12, 31))
+  year_start = as.Date(ISOdate(year_, 1, 1))
+  year_end = as.Date(ISOdate(year_, 12, 31))
   diff = min(abs(c(date - year_start, date - year_end)))
   return(diff)
 }
@@ -231,6 +234,9 @@ print(nrow(df_removed))
 total_gross_count = nrow(subset(df, !is.na(Gross)))
 removed_gross_count = nrow(subset(df_removed, !is.na(Gross)))
 sprintf("percent of rows with Gross value removed: %f", 100 * removed_gross_count/total_gross_count)
+```
+```{r}
+df = df_remaining
 ```
 
 **Q**: What is your precise removal logic and how many rows did you end up removing?
@@ -253,16 +259,67 @@ Note: To get a meaningful relationship, you may have to partition the movies int
 df_long = melt(df, variable.name="Genre", measure.vars=names(genres))
 df_long = subset(df_long, value == 1)
 df_long$value = NULL
-ggpairs(df_long, columns=c('Gross', 'Budget', 'Runtime'), ggplot2::aes(color=Genre))
+df_long$Profit = df_long$Gross - df_long$Budget
+df_long$Short = df_long$Runtime < 50
+df_sample = df_long[sample(nrow(df_long), 10000),]
+
+# No visually observable strong relationship between Gross and Budget across all Genres
+ggplot(df_sample, aes(Budget, Gross, color=Genre)) +
+  geom_point()
+
+# No visually observable strong relationship between Gross and Budget within most Genres
+ggplot(df_long, aes(Budget, Gross)) +
+  geom_point(stat="identity") +
+  xlim(0, 3e+8) +
+  ylim(0, 2e+9) +
+  facet_wrap(~ Genre)
+
+# Documentaries have a strong positive correlation between Gross and Budget
+# Action, thriller, adventure, scifi, and fantasy each have a moderate positive relationship between Gross and Budget
+for (g in names(sort(genres, decreasing = TRUE)[1:25])) {
+  m = lm(Gross ~ Budget, subset(df_long, Genre == g))
+  print(sprintf("%s Adj-R2: %f", g, summary(m)$adj.r.squared))
+}
+
+# No relationship between Profit and runtime
+ggplot(df_long, aes(Runtime, Profit)) +
+  geom_point(stat="identity") +
+  facet_wrap(~ Genre)
+
+# 
+ggplot(df_sample, aes(Genre, Profit)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  ylim(0, 5e+8)
 ```
 
 **Q**: Did you find any observable relationships or combinations of Budget/Runtime/Genre that result in high Gross revenue? If you divided the movies into different subsets, you may get different answers for them - point out interesting ones.
 
 **A**: 
+- Documentaries have a strong positive correlation between Gross and Budget (~.8 Adj R squared)
+- Action, thriller, adventure, scifi, and fantasy movies each have a moderate positive relationship between Gross and Budget (~.5 Adj R squared)
+- There is no correlation between Profit (Gross - Budget) and Runtime
+- Profit distribution across Genres varies significantly
+- Animations have the largest Profit variance and highest median Profit
+- Music movies have the lowest Profit variance and the second lowest median Profit
+- Profit distributions for most genres are skewed upward (low median with large possitive outliers)
+
+
 
 ```{r}
 # TODO: Investigate if Gross Revenue is related to Release Month
+df$Month = factor(as.numeric(format(df$Released, "%m")))
+df$Profit = df$Gross - df$Budget
+ggplot(df, aes(Month, Gross)) +
+  geom_boxplot() +
+  ylim(0, 1e+9)
 ```
+
+**Observations**:
+- A pattern in the distribution of Gross values can be observed over each month
+- There is a pattern of low Gross distributions from January to April
+- A spike happens in May/June
+- A decease occurs from June to September, and an increase from September to Deceber
 
 ## 6. Process `Awards` column
 
@@ -272,6 +329,30 @@ Note that the format of the `Awards` column is not standard; you may have to use
 
 ```{r}
 # TODO: Convert Awards to 2 numeric columns: wins and nominations
+
+parse_awards <- function(msg) {
+  awards = 0
+  nominations = 0
+  for (pattern in c('won (\\d+)', "(\\d+) win")) {
+    m = str_match(msg, pattern)[1, 2]
+    if (!is.na(m)) {
+      awards = awards + as.integer(m)
+    }
+  }
+  for (pattern in c('nominated for (\\d+)', "(\\d+) nomination")) {
+    m = str_match(msg, pattern)[1, 2]
+    if (!is.na(m)) {
+      nominations = nominations + as.integer(m)
+    }
+  }
+  return(c(awards, nominations))
+}
+
+a = sapply(df$Awards, parse_awards)
+
+# freqs = t(wfm(df$Genre, 1:nrow(df)))
+# df = data.frame(df, freqs, check.names = FALSE)
+# df[c('Genre', 'na')] = NULL
 ```
 
 **Q**: How did you construct your conversion mechanism? How many rows had valid/non-zero wins or nominations?
