@@ -65,6 +65,7 @@ Load any R packages that you will need to use. You can come back to this chunk, 
 
 ```{r}
 library(ggplot2)
+library(lattice)
 library(GGally)
 library(dplyr)
 library(qdap)
@@ -75,6 +76,9 @@ library(stringr)
 If you are loading any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
 
 **Non-standard packages used**:
+- ggplot2
+- lattice
+- GGally
 - dplyr
 - qdap
 - reshape2
@@ -330,56 +334,65 @@ Note that the format of the `Awards` column is not standard; you may have to use
 ```{r}
 # TODO: Convert Awards to 2 numeric columns: wins and nominations
 
-parse_awards <- function(msg) {
-  awards = 0
-  nominations = 0
-  for (pattern in c('won (\\d+)', "(\\d+) win")) {
+parse_awards <- function(msg, patterns) {
+  if (is.na(msg)) {
+    return(NA)
+  }
+  msg = tolower(msg)
+  value = 0
+  for (pattern in patterns) {
     m = str_match(msg, pattern)[1, 2]
     if (!is.na(m)) {
-      awards = awards + as.integer(m)
+      value = value + as.integer(m)
     }
   }
-  for (pattern in c('nominated for (\\d+)', "(\\d+) nomination")) {
-    m = str_match(msg, pattern)[1, 2]
-    if (!is.na(m)) {
-      nominations = nominations + as.integer(m)
-    }
-  }
-  return(c(awards, nominations))
+  return(value)
 }
 
-a = sapply(df$Awards, parse_awards)
-
-# freqs = t(wfm(df$Genre, 1:nrow(df)))
-# df = data.frame(df, freqs, check.names = FALSE)
-# df[c('Genre', 'na')] = NULL
+awards_patterns = c('won (\\d+)', "(\\d+) win")
+nomination_patterns = c('nominated for (\\d+)', "(\\d+) nomination")
+df$Wins = sapply(df$Awards, parse_awards, pattern=awards_patterns)
+df$Nominations = sapply(df$Awards, parse_awards, pattern=nomination_patterns)
+df['Awards'] = NULL
+nrow(subset(df, Wins > 0 | Nominations > 0))
 ```
 
 **Q**: How did you construct your conversion mechanism? How many rows had valid/non-zero wins or nominations?
 
-**A**: 
+**A**: 11,653 rows had valid/non-zero wins or nominations.
 
 ```{r}
 # TODO: Plot Gross revenue against wins and nominations
+ggpairs(df[c('Gross', 'Wins', 'Nominations')])
 ```
 
 **Q**: How does the gross revenue vary by number of awards won and nominations received?
 
 **A**: 
+- Gross varies widely across both number of wins and nominations
+- Movies with > 50 Wins cluster toward lower Gross values
+- Movies with > 75 Nominations cluster toward lower Gross values
 
 ## 7. Movie ratings from IMDb and Rotten Tomatoes
 
-There are several variables that describe ratings, including IMDb ratings (`imdbRating` represents average user ratings and `imdbVotes` represents the number of user ratings), and multiple Rotten Tomatoes ratings (represented by several variables pre-fixed by `tomato`). Read up on such ratings on the web (for example [rottentomatoes.com/about](https://www.rottentomatoes.com/about) and [ www.imdb.com/help/show_leaf?votestopfaq](http:// www.imdb.com/help/show_leaf?votestopfaq)).
+There are several variables that describe ratings, including IMDb ratings (`imdbRating` represents average user ratings and `imdbVotes` represents the number of user ratings), and multiple Rotten Tomatoes ratings (represented by several variables pre-fixed by `tomato`). Read up on such ratings on the web (for example [rottentomatoes.com/about](https://www.rottentomatoes.com/about) and [ www.imdb.com/help/show_leaf?votestopfaq](http://www.imdb.com/help/show_leaf?votestopfaq)).
 
 Investigate the pairwise relationships between these different descriptors using graphs.
 
 ```{r}
 # TODO: Illustrate how ratings from IMDb and Rotten Tomatoes are related
+ratingColumns = c('imdbRating', 'imdbVotes', 'tomatoMeter', 'tomatoRating', 'tomatoReviews', 'tomatoFresh', 'tomatoRotten', 'tomatoUserMeter', 'tomatoUserRating', 'tomatoUserReviews')
+df_sample = df[sample(nrow(df), 1000),]
+ggpairs(df_sample, columns=ratingColumns)
+ggcorr(df[ratingColumns], label=TRUE, size=3, hjust=0.75)
 ```
 
 **Q**: Comment on the similarities and differences between the user ratings of IMDb and the critics ratings of Rotten Tomatoes.
 
 **A**: 
+- The strongest relationship is betwen imdbRating and tomatoRating/tomatoMeter (corr 0.8)
+- imdbRating also correlates strongly with tomatoUserRating/tomatoUserMeter (corr 0.7)
+- Imdb and tomato ratings do not correlate to their respective number of critic or user reviews.
 
 ## 8. Ratings and awards
 
@@ -389,11 +402,18 @@ Study the relationship between ratings and awards using graphs (awards here refe
 
 ```{r}
 # TODO: Show how ratings and awards are related
+columns = c('imdbRating', 'tomatoMeter', 'Wins', 'Nominations')
+df_sample = df[sample(nrow(df), 5000),]
+ggpairs(df_sample, columns=columns)
 ```
 
 **Q**: How good are these ratings in terms of predicting the success of a movie in winning awards or nominations? Is there a high correlation between two variables?
 
 **A**: 
+- imdbRating and tomatoMeter each have low correlation with either Wins or Nominations.
+- A linear relationship does not exist between ratings an awards
+- Movies with higher ratings have a wider range of Wins and Nominations
+- A predictive model could partially determine award success (low ratings predicts low awards)
 
 ## 9. Expected insights
 
@@ -401,11 +421,20 @@ Come up with two new insights (backed up by data and graphs) that is expected. H
 
 ```{r}
 # TODO: Find and illustrate two expected insights
+freqs = t(wfm(df$Language, 1:nrow(df)))
+top_n_lang = sort(colSums(freqs), decreasing = TRUE)[1:10]
+df = data.frame(df, freqs[,names(top_n_lang)])
+
+ggplot(df_sample, aes(factor(english), Gross)) +
+  geom_boxplot() +
+  ylim(0, 3e+8)
+
 ```
+
 
 **Q**: Expected insight #1.
 
-**A**: 
+**A**: The distribution of Gross values is lower for movies without an English language version.
 
 
 **Q**: Expected insight #2.
@@ -419,9 +448,18 @@ Come up with one new insight (backed up by data and graphs) that is unexpected a
 
 ```{r}
 # TODO: Find and illustrate one unexpected insight
+df_temp = cbind(df)
+df_temp[c('Language')] = NULL
+df_long = melt(df_temp, variable.name="Language", measure.vars=names(top_n_lang))
+df_long = subset(df_long, value == 1)
+df_long$value = NULL
+
+ggplot(df_long, aes(factor(Language), Gross)) +
+  geom_boxplot() +
+  ylim(0, 5e+8)
 ```
 
 **Q**: Unexpected insight.
 
-**A**: 
+**A**: English language movies do not have the highest median Gross. Movies with a Russian, Japanese, French, Spanish, Italian, or Polish language version have higher median Gross values. This is explained by the fact that successful domestic movies are probably translated for export in other languages, while poor performing movies remain only in English versions. This pulls the distribution of Gross values up for movies in these other languages.
 
