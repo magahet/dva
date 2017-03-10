@@ -1,9 +1,11 @@
 ---
 title: 'Project 1: Explore and Prepare Data'
 subtitle: |-
+  GID mmendiola3
   CSE6242 - Data and Visual Analytics - Spring 2017
   Due: Sunday, March 5, 2017 at 11:59 PM UTC-12:00 on T-Square
 output:
+  pdf_document: default
   html_notebook: default
   html_document: default
 ---
@@ -64,6 +66,7 @@ colnames(df)
 Load any R packages that you will need to use. You can come back to this chunk, edit it and re-run to load any additional packages later.
 
 ```{r}
+options(warn=-1)
 library(ggplot2)
 library(lattice)
 library(GGally)
@@ -76,6 +79,7 @@ library(stringr)
 If you are loading any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
 
 **Non-standard packages used**:
+
 - ggplot2
 - lattice
 - GGally
@@ -150,6 +154,7 @@ _Feel free to insert additional code chunks as necessary._
 **Q**: Comment on the distribution as well as relationships. Are there any patterns or trends that you can observe?
 
 **A**: 
+
 - Median runtimes increase over each decade, with a slight drop in the 2000s.
 - There are many outliers, with some Runtimes over 10 hours!
 - IQR decreases over the decades, while outliers increase. Indicates many more movies being made at or near the median in later dacades. Runtimes had greater variance between 1910 and 1950.
@@ -199,6 +204,7 @@ ggplot(runtimes_sample, aes(reorder(Genre, -Runtime, median), Runtime)) +
 **Q**: Describe the interesting relationship(s) you observe. Are there any expected or unexpected trends that are evident?
 
 **A**: 
+
 - Unsurprisingly, movies in the short and animation genres have a significantly shorter median runtime.
 - Documentaries seem to have a large variance in runtimes, with a few large outliers. The median runtime for documentaries are shorter than most other genres.
 - All other genres seem to follow a similar distribution, with median runtimes just under 100 minutes, small variance, and a number of outliers.
@@ -214,7 +220,7 @@ Find and remove all rows where you suspect a merge error occurred based on a mis
 # TODO: Remove rows with Released-Year mismatch
 year_delta <- function(year_, date) {
   if (is.na(year_) || is.na(date)) {
-    return(NA)
+    return(0)
   } else if (year_ == as.numeric(format(date, "%Y"))) {
     return(0)
   }
@@ -225,12 +231,11 @@ year_delta <- function(year_, date) {
   return(diff)
 }
 before_count = nrow(df)
-# Threshold of days between Release and Year
 df$DaysDiff = mapply(year_delta, df$Year, df$Released)
-a = subset(df, select=c('Year', 'Released', 'DaysDiff'))
 ```
 
 ```{r}
+# Threshold of days between Release and Year
 threshold = 67
 df_removed = subset(df, DaysDiff > threshold)
 df_remaining = subset(df, DaysDiff <= threshold)
@@ -246,8 +251,11 @@ df = df_remaining
 **Q**: What is your precise removal logic and how many rows did you end up removing?
 
 **A**: 
-1. If Year matches the year portion of Released, keep row.
-2. If Released date is within 67 days of the first or last date of the Year, keep row.
+
+1. If Year or Released are NA, keep row
+2. If Year matches the year portion of Released, keep row
+3. If Released date is within 67 days of the first or last date of the Year, keep row
+4. If Released date is greater than 67 days of the first or last date of the Year, remove row
 
 - Removes 4,318 rows.
 - Removes 10% of rows with non NA values for Gross.
@@ -300,8 +308,9 @@ ggplot(df_sample, aes(Genre, Profit)) +
 **Q**: Did you find any observable relationships or combinations of Budget/Runtime/Genre that result in high Gross revenue? If you divided the movies into different subsets, you may get different answers for them - point out interesting ones.
 
 **A**: 
-- Documentaries have a strong positive correlation between Gross and Budget (~.8 Adj R squared)
-- Action, thriller, adventure, scifi, and fantasy movies each have a moderate positive relationship between Gross and Budget (~.5 Adj R squared)
+
+- Documentaries have a strong positive correlation between Gross and Budget (~0.8 Adj R squared)
+- Action, thriller, adventure, scifi, and fantasy movies each have a moderate positive relationship between Gross and Budget (~0.5 Adj R squared)
 - There is no correlation between Profit (Gross - Budget) and Runtime
 - Profit distribution across Genres varies significantly
 - Animations have the largest Profit variance and highest median Profit
@@ -320,6 +329,7 @@ ggplot(df, aes(Month, Gross)) +
 ```
 
 **Observations**:
+
 - A pattern in the distribution of Gross values can be observed over each month
 - There is a pattern of low Gross distributions from January to April
 - A spike happens in May/June
@@ -359,7 +369,7 @@ nrow(subset(df, Wins > 0 | Nominations > 0))
 
 **Q**: How did you construct your conversion mechanism? How many rows had valid/non-zero wins or nominations?
 
-**A**: 11,653 rows had valid/non-zero wins or nominations.
+**A**: Four regexes were crafted to extract wins and nominations from the observed variations. Each of the two regexes for each type are run against the Awards column. Extracted values are summed and entered into new columns. 11,653 rows had valid/non-zero wins or nominations.
 
 ```{r}
 # TODO: Plot Gross revenue against wins and nominations
@@ -369,6 +379,7 @@ ggpairs(df[c('Gross', 'Wins', 'Nominations')])
 **Q**: How does the gross revenue vary by number of awards won and nominations received?
 
 **A**: 
+
 - Gross varies widely across both number of wins and nominations
 - Movies with > 50 Wins cluster toward lower Gross values
 - Movies with > 75 Nominations cluster toward lower Gross values
@@ -390,6 +401,7 @@ ggcorr(df[ratingColumns], label=TRUE, size=3, hjust=0.75)
 **Q**: Comment on the similarities and differences between the user ratings of IMDb and the critics ratings of Rotten Tomatoes.
 
 **A**: 
+
 - The strongest relationship is betwen imdbRating and tomatoRating/tomatoMeter (corr 0.8)
 - imdbRating also correlates strongly with tomatoUserRating/tomatoUserMeter (corr 0.7)
 - Imdb and tomato ratings do not correlate to their respective number of critic or user reviews.
@@ -410,6 +422,7 @@ ggpairs(df_sample, columns=columns)
 **Q**: How good are these ratings in terms of predicting the success of a movie in winning awards or nominations? Is there a high correlation between two variables?
 
 **A**: 
+
 - imdbRating and tomatoMeter each have low correlation with either Wins or Nominations.
 - A linear relationship does not exist between ratings an awards
 - Movies with higher ratings have a wider range of Wins and Nominations
@@ -479,4 +492,3 @@ ggplot(df_long, aes(factor(Language), Gross)) +
 **Q**: Unexpected insight.
 
 **A**: English language movies do not have the highest median Gross. Movies with a Russian, Japanese, French, Spanish, Italian, or Polish language version have higher median Gross values. This is explained by the fact that successful domestic movies are probably translated for export in other languages, while poor performing movies remain only in English versions. This pulls the distribution of Gross values up for movies in these other languages.
-

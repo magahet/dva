@@ -1,0 +1,64 @@
+---
+title: "AC4 - DVA - GID: mmendiola3"
+output: pdf_document
+geometry: margin=0.5in
+---
+
+**Data**
+
+I used a subset of the LAPD crime data available at the following URL, which includes the GPS coordinates and Crime Code for all LA crimes reported in 2016.
+
+https://data.lacity.org/A-Safe-City/LAPD-Crime-and-Collision-Raw-Data-for-2016/ttiz-7an8/data
+
+```{r echo=FALSE, message=FALSE}
+options(warn=-1)
+library('feather')
+library('ggplot2')
+library('ggmap')
+library('dplyr')
+library('reshape2')
+df <- read_feather('la-crime.feather')
+```
+
+**Analysis**
+
+I analyzed the distribution of Crimes Code Catagories between the two major Los Angeles population centers (San Fernando Vally and City of Los Angeles).
+
+```{r echo=FALSE, message=FALSE}
+# Calculate crime rankings
+df$Crm_rank <- floor(df$`Crm Cd` / 100)
+```
+
+```{r message=FALSE}
+# Perform k-means cluster analysis
+cl = kmeans(as.matrix(cbind(df$lat, df$lon), ncol=2), 2)
+df$cluster = factor(cl$cluster)
+
+# Reshape to show relative proportions of each crime ranking by cluster
+c <- df %>% select(Crm_rank, cluster) %>% group_by(Crm_rank, cluster) %>%
+  mutate(count = n()) %>% slice(1)
+c_wide <- dcast(c, Crm_rank ~ cluster)
+```
+
+```{r echo=FALSE, message=FALSE}
+c_wide$p1 = c_wide$`1` / sum(c_wide$`1`)
+c_wide$p2 = c_wide$`2` / sum(c_wide$`2`)
+
+c_wide$diff = abs(c_wide$p1 - c_wide$p2)
+
+# Print max difference in relative crime ranking proportions
+print(sprintf("Max difference in relative percentages of Crime Rankings: %f", max(c_wide$diff)))
+```
+
+**Visualization**
+
+The following plot shows the geographical distribution of reported crimes across Los Angeles. Shapes show the k-means (k=2) cluster membership of each report. Color indicates the Crime Code value (100s indicating major crimes to 900s indicating minor crimes). The max difference in relative percentages of Crime rankings from above indicates that between the two population clusters, there is little difference in the distribution of the seriousness of reported crimes.
+
+```{r fig.width=8, echo=FALSE, message=FALSE}
+# map <- get_map('Los Angeles, CA', zoom=13, maptype = "roadmap", color='bw')
+location <- c(-118.65, 33.85, -118.20, 34.35)
+map <- get_map(location, zoom=11, maptype = "roadmap", color='bw')
+ggmap(map) +
+  geom_point(aes(x=lon, y=lat, color=df$`Crm Cd`), data=df, size=1, alpha=.8, shape=df$cluster) +
+  scale_colour_gradient(low="red", high="green")
+```
