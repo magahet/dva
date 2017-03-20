@@ -1,0 +1,34 @@
+---
+title: "HW3 - DVA"
+author: "mmendiola3"
+output: pdf_document
+---
+
+## 1. Theory
+
+Cost function:
+
+$$
+\theta_{MLE} = argmin_\theta \sum_{i=1}^nlog(1+\exp(y^i<\theta,x^i>)
+$$
+
+Update function:
+
+$$
+\begin{aligned}
+
+\theta_j & \leftarrow \theta_j - \alpha \frac{\partial}{\partial\theta_j}\sum_{i=1}^n log(1+\exp(y^i<\theta,x^i>))\\\\
+
+& = \theta_j - \alpha \sum_{i=1}^n \frac{1}{1+\exp(y^i<\theta,x^i>)} \cdot \frac{\partial}{\partial \theta_j} \exp(y^i<\theta,x^i>)\\\\
+
+& = \theta_j - \alpha \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot \frac{\partial}{\partial \theta_j} y^i <\theta,x^i>}{1+\exp(y^i<\theta,x^i>)}\\\\
+
+& = \theta_j - \alpha \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot y^i x^i_j}{1+\exp(y^i<\theta,x^i>)}\\\\
+
+&= \theta_j - \alpha \sum_{i=1}^n \frac{1}{1+\exp(-y^i<\theta,x^i>)}
+
+\end{aligned}
+$$
+
+note: $<\theta, x^i>$ is constant with the exception of $\theta_j \cdot x_j^i$
+

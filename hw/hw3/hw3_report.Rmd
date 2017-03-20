@@ -1,0 +1,54 @@
+---
+title: "HW3 - DVA"
+author: "mmendiola3"
+output: pdf_document
+---
+
+## 1. Theory
+
+### a. Write down the formula for computing the gradient of the loss function used in Logistic Regression. Specify what each variable represents in the equation. 
+
+Cost function:
+
+$$
+\theta_{MLE} = argmin_\theta \frac{1}{n}\sum_{i=1}^nlog(1+\exp(y^i<\theta,x^i>)
+$$
+We'll add a constant $1/n$ to scale the update by the number of training samples.
+Update function:
+
+$$
+\begin{aligned}
+\theta_j & \leftarrow \theta_j - \alpha \frac{1}{n} \frac{\partial}{\partial\theta_j}\sum_{i=1}^n log(1+\exp(y^i<\theta,x^i>))\\\\
+& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{1}{1+\exp(y^i<\theta,x^i>)} \cdot \frac{\partial}{\partial \theta_j} \exp(y^i<\theta,x^i>)\\\\
+& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot \frac{\partial}{\partial \theta_j} y^i <\theta,x^i>}{1+\exp(y^i<\theta,x^i>)}\\\\
+& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot y^i x^i_j}{1+\exp(y^i<\theta,x^i>)}\\\\
+&= \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{y^ix^i}{1+\exp(-y^i<\theta,x^i>)}
+\end{aligned}
+$$
+
+note: $<\theta, x^i>$ is constant with the exception of $\theta_j \cdot x_j^i$
+
+**Terms:**
+
+- $\theta_j$ : The value of the current parameter vector at feature index j
+- $\alpha$ : The learning rate, which decreases over each training iteration
+- $n$ : The number of training samples
+- $y^i$ : The classification label for training sample index $i$
+- $x^i$ : The feature vector for training sample index $i$
+- $<\theta, x^i>$ : The dot product of the parameter vector and the training sample at index $i$
+
+
+### b. Write pseudocode for training a model using Logistic Regression. 
+
+set x^i_0 = 1 # for bias term
+alpha = <some learning rate>
+threshold = <some threshold value>
+theta = <random vector of size d (feature count)>
+
+while true:
+  last_theta = theta
+  gradiant = (1/n) * sum()
+  
+
+
+### c. Calculate the number of operations per gradient descent iteration. (Hint: Use variable n for number of examples and d for dimensionality.) 
