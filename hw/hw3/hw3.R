@@ -1,6 +1,6 @@
 #!/usr/bin/Rscript
 
-# GT account name: mmendiola3
+# GT aciterations name: mmendiola3
 
 # 0. Data Preprocessing
 # a. Download the CSV files for the provided dataset. 
@@ -34,6 +34,7 @@ test_3_5 <- test_3_5[1:784,]
 print('Seperating Training labels and relabelling to -1/1')
 true_label_train_0_1 <- train[785, train[785,] <=1]
 true_label_train_0_1[true_label_train_0_1 == 0] <- -1
+
 true_label_train_3_5 <- train[785, train[785,] >=3]
 true_label_train_3_5[true_label_train_3_5 == 3] <- -1
 true_label_train_3_5[true_label_train_3_5 == 5] <- 1
@@ -41,6 +42,7 @@ true_label_train_3_5[true_label_train_3_5 == 5] <- 1
 print('Seperating Test labels')
 true_label_test_0_1 <- test[785, test[785,] <=1]
 true_label_test_0_1[true_label_test_0_1 == 0] <- -1
+
 true_label_test_3_5 <- test[785, test[785,] >=3]
 true_label_test_3_5[true_label_test_3_5 == 3] <- -1
 true_label_test_3_5[true_label_test_3_5 == 5] <- 1
@@ -78,72 +80,89 @@ par(mfrow=c(1,1))
 
 # 2. Implementation
 
-my_logr <- function(x, y, alpha, threshold, vectorized=FALSE, stocastic=FALSE, adaptive_alpha=FALSE, max_time=60) {
-  # Add featur for bias term
+compute.theta <- function(x, y, theta, alpha, vectorized=FALSE, stocastic=TRUE) {
+  if (stocastic == TRUE) {
+    # Stocastic gradient decent
+    i <- sample(1:ncol(x), 1)
+    yx = y[i] * x[,i]
+    h = t(theta) %*% x[,i]
+    gradient <- yx / (1 + exp(-y[i] * h))
+    sample_size = 1
+  } else if (vectorized) {
+    # Vectorized batch gradient decent
+    yx = y * x
+    h = t(x) %*% theta
+    error = -y * h
+    gradient <- rowSums(sweep(yx, 2, (1 + exp(error)), `/`), 1)
+    sample_size = ncol(x)
+  } else {
+    # Semi-vectorized batch gradient decent
+    gradient <- as.vector(rep(0, nrow(x)))
+    for (i in 1:ncol(x)) {
+      yx = y[i] * x[,i]
+      h = t(theta) %*% x[,i]
+      gradient <- gradient + yx / (1 + exp(-y[i] * h))
+    }
+    sample_size = ncol(x)
+  }
+  return(theta - (1 / sample_size) * alpha * gradient)
+}
+
+logistic.regression <- function(x, y, alpha=0.1, delta_alpha=0.9, epsilon=1e-4, vectorized=FALSE, stocastic=TRUE, adaptive_alpha=TRUE, max_time=60, max_iterations=10000) {
+  print(paste('Starting logistic regression on ', ncol(x), ' samples with ', nrow(x), ' features'))
+  # Add feature for bias term
   x <- rbind(x, rep(1, ncol(x)))
-  # Difference between theta
-  del_theta <- as.matrix(1)
-  del_theta_norm <- 0.0
-  # theta
+  
+  # Initialize theta with random values between 0 and 1
   theta <- as.matrix(runif(nrow(x)))
   theta_old <- as.matrix(rep(0, nrow(x)))
   
-  
-  # Normalize
-  # theta <- theta/norm(theta)
-  count <- 0
-  
-  # Start timer
+  # Start timer and iterations
   start.time <- Sys.time()
+  last.time <- Sys.time()
+  iterations <- 0
+  cost.log <- as.vector(cost(x, y, theta))
+  delta_cost <- 1
   
-  # Compute gradient
-  gradient <- as.vector(rep(0, nrow(x)))
-  while((max(gradient) == 0 || norm(del_theta) > threshold) && Sys.time() - start.time < max_time) {
-    count = count + 1
-    alpha = sqrt(count)
-    if (count %% 1000 == 0) {
-      print(paste('Training iterations: ', count))
-      print(paste('norm(del_theta): ', norm(del_theta)))
-    }
-    
-    if (stocastic) {
-      i <- sample(1:ncol(x), 1)
-      yx = y[i] * x[,i]
-      h = t(theta) %*% x[,i]
-      gradient <- yx / (1 + exp(-y[i] * h))
-    } else if (vectorized) {
-      yx = y * x
-      h = t(x) %*% theta
-      error = -y * h
-      gradient <- rowSums(sweep(yx, 2, (1 + exp(error)), `/`), 1)
-    } else {
-      gradient <- as.vector(rep(0, nrow(x)))
-      for (i in 1:ncol(x)) {
-        yx = y[i] * x[,i]
-        h = t(theta) %*% x[,i]
-        gradient <- gradient + yx / (1 + exp(-y[i] * h))
-      }
+  # Continue training iterations until the l1-norm of delta_theta is below the epsilon or max_time has elapsed
+  # Also continue if gradiant is zero to prevent premature exit
+  while(delta_cost > epsilon && iterations < max_iterations) {
+    iterations = iterations + 1
+    # Print periodic updates
+    if (as.numeric(Sys.time() - last.time) > 3) {
+      print(paste('Training iterations: ', iterations))
+      print(paste('Delta cost: ', delta_cost))
+      print(paste('Training accuracy: ', accuracy(theta, x, y)))
+      last.time <- Sys.time()
     }
     
     # Update theta
-    theta <- theta_old - (1/ncol(x)) * alpha * gradient
-    # theta <- theta / norm(theta)
-    # print(theta[1:10,])
-    del_theta <- as.matrix(theta_old - theta)
-    if (adaptive_alpha) {
-      if (del_theta_norm < norm(del_theta)) {
-        alpha <- alpha * 2
-      } else {
-        alpha <- alpha / 2
-      }
+    theta <- compute.theta(x, y, theta, alpha)
+    
+    # Update cost.log
+    if (iterations %% 100 == 0) {
+      cost.log <- c(cost.log, cost(x, y, theta))
+      delta_cost <- abs(diff(tail(cost.log, 2))) / tail(cost.log, 2)[1]
     }
-    del_theta_norm <- norm(del_theta)
-    theta_old <- theta
   }
-  print(paste('Training iterations: ', count))
+  
+  plot(cost.log, type='l', main="Learning curve", xlab="iterations (00s)", ylab="cost")
+  
+  print(paste('Training iterations: ', iterations))
+  print(paste('Delta cost: ', delta_cost))
+  print(paste('Elapsed time: ', round(as.numeric(Sys.time() - start.time)), ' sec'))
+  print(paste('Training accuracy: ', accuracy(theta, x, y)))
   return(theta)
 }
 
+
+# Cost Function... negative log likelyhood
+
+cost <- function(x, y, theta) {
+  return(mean(log(1 + exp(y * t(x) %*% theta))))
+}
+
+# Create labels for a set of samples given a theta
 classify <- function(theta, x) {
   if (length(theta) == nrow(x) + 1) {
     x <- rbind(x, rep(1, ncol(x)))
@@ -155,11 +174,13 @@ classify <- function(theta, x) {
   return(h)
 }
 
+# Calculate the ratio of correctly classified labels
 test_fit <- function(p, y) {
   cp <- t(p) * y
   return(sum(cp[cp == 1])/ncol(cp))
 }
 
+# Calculate the accuracy of a given theta against a set of samples
 accuracy <- function(theta, x, y) {
   if (length(theta) == nrow(x) + 1) {
     x <- rbind(x, rep(1, ncol(x)))
@@ -168,29 +189,34 @@ accuracy <- function(theta, x, y) {
   return(test_fit(p, y))
 }
 
-theta.final <- my_logr(train_0_1, true_label_train_0_1, 0.1, 0.000001, TRUE)
-accuracy(theta.final, test_0_1, true_label_test_0_1)
+# 3. Training
 
-theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 0.000001, FALSE, FALSE, 200)
-accuracy(theta.final, test_0_1, true_label_test_0_1)
+# a. Train 2 models, one on the train_0_1 set and another on train_3_5, and report the training and test accuracies. 
+theta_0_1 <- logistic.regression(train_0_1, true_label_train_0_1, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
+print(paste('test_0_1 accuracy: ', accuracy(theta_0_1, test_0_1, true_label_test_0_1)))
 
-theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 0.000001, TRUE, FALSE, 200)
-accuracy(theta.final, train_3_5, true_label_train_3_5)
-accuracy(theta.final, test_3_5, true_label_test_3_5)
+theta_3_5 <- logistic.regression(train_3_5, true_label_train_3_5, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
+print(paste('test_3_5 accuracy: ', accuracy(theta_3_5, test_3_5, true_label_test_3_5)))
 
-theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 1e-6, FALSE, TRUE, TRUE, 5)
-accuracy(theta.final, test_3_5, true_label_test_3_5)
-accuracy(theta.final, train_3_5, true_label_train_3_5)
+# b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
+
+sum_accuracy_3_5 <- 0
+for (i in 1:10) {
+  theta <- logistic.regression(train_3_5, true_label_train_3_5, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
+  sum_accuracy_3_5 <- sum_accuracy_3_5 + accuracy(theta_3_5, test_3_5, true_label_test_3_5)
+}
+# c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy. Also, explain why do you think this difference might be. 
+
+# d. This assignment deals with binary classification. Explain what you would do if you had more than two classes to classify, using logistic regression. 
 
 s_x = rbind(train_3_5[,6122:6142], rep(1, ncol(s_x)))
 s_y = true_label_train_3_5[6122:6142]
-h <- 1 / (1 + exp(t(s_x) %*% theta.final))
-p = classify(theta.final, s_x)
+h <- 1 / (1 + exp(t(s_x) %*% theta_3_5))
+p = classify(theta_3_5, s_x)
 test_fit(p, s_y)
 
 
 
-# 3. Training
 
 # 4. Evaluation
 
