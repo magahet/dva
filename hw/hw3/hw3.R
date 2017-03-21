@@ -78,28 +78,40 @@ par(mfrow=c(1,1))
 
 # 2. Implementation
 
-my_logr <- function(x, y, alpha, threshold, vectorized=FALSE) {
+my_logr <- function(x, y, alpha, threshold, vectorized=FALSE, stocastic=FALSE, adaptive_alpha=FALSE, max_time=60) {
   # Add featur for bias term
   x <- rbind(x, rep(1, ncol(x)))
   # Difference between theta
   del_theta <- as.matrix(1)
+  del_theta_norm <- 0.0
   # theta
   theta <- as.matrix(runif(nrow(x)))
   theta_old <- as.matrix(rep(0, nrow(x)))
   
+  
   # Normalize
-  theta <- theta/norm(theta)
+  # theta <- theta/norm(theta)
   count <- 0
   
+  # Start timer
+  start.time <- Sys.time()
+  
   # Compute gradient
-  while(norm(del_theta) > threshold) {
+  gradient <- as.vector(rep(0, nrow(x)))
+  while((max(gradient) == 0 || norm(del_theta) > threshold) && Sys.time() - start.time < max_time) {
     count = count + 1
-    if (count %% 10 == 0) {
+    alpha = sqrt(count)
+    if (count %% 1000 == 0) {
       print(paste('Training iterations: ', count))
       print(paste('norm(del_theta): ', norm(del_theta)))
     }
     
-    if (vectorized) {
+    if (stocastic) {
+      i <- sample(1:ncol(x), 1)
+      yx = y[i] * x[,i]
+      h = t(theta) %*% x[,i]
+      gradient <- yx / (1 + exp(-y[i] * h))
+    } else if (vectorized) {
       yx = y * x
       h = t(x) %*% theta
       error = -y * h
@@ -114,10 +126,18 @@ my_logr <- function(x, y, alpha, threshold, vectorized=FALSE) {
     }
     
     # Update theta
-    theta <- theta_old - alpha * (1 / ncol(x)) * gradient
-    theta <- theta / norm(theta)
+    theta <- theta_old - (1/ncol(x)) * alpha * gradient
+    # theta <- theta / norm(theta)
     # print(theta[1:10,])
     del_theta <- as.matrix(theta_old - theta)
+    if (adaptive_alpha) {
+      if (del_theta_norm < norm(del_theta)) {
+        alpha <- alpha * 2
+      } else {
+        alpha <- alpha / 2
+      }
+    }
+    del_theta_norm <- norm(del_theta)
     theta_old <- theta
   }
   print(paste('Training iterations: ', count))
@@ -128,10 +148,10 @@ classify <- function(theta, x) {
   if (length(theta) == nrow(x) + 1) {
     x <- rbind(x, rep(1, ncol(x)))
   }
-  h <- t(x) %*% theta
-  h[h < 0.0] <- -1
-  h[h > 0.0] <- 1
-  h[h == 0.0] <- NA
+  h <- 1 / (1 + exp(t(x) %*% theta))
+  h[h < 0.5] <- -1
+  h[h > 0.5] <- 1
+  h[h == 0.5] <- NA
   return(h)
 }
 
@@ -151,21 +171,22 @@ accuracy <- function(theta, x, y) {
 theta.final <- my_logr(train_0_1, true_label_train_0_1, 0.1, 0.000001, TRUE)
 accuracy(theta.final, test_0_1, true_label_test_0_1)
 
-theta.final <- my_logr(train_0_1, true_label_train_0_1, 0.1, 0.000001, FALSE)
+theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 0.000001, FALSE, FALSE, 200)
 accuracy(theta.final, test_0_1, true_label_test_0_1)
 
-theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 0.000001, TRUE)
+theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 0.000001, TRUE, FALSE, 200)
+accuracy(theta.final, train_3_5, true_label_train_3_5)
 accuracy(theta.final, test_3_5, true_label_test_3_5)
 
-theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.05, 0.05, FALSE)
+theta.final <- my_logr(train_3_5, true_label_train_3_5, 0.1, 1e-6, FALSE, TRUE, TRUE, 5)
 accuracy(theta.final, test_3_5, true_label_test_3_5)
 accuracy(theta.final, train_3_5, true_label_train_3_5)
 
-s_x = train_3_5[,6122:6142]
+s_x = rbind(train_3_5[,6122:6142], rep(1, ncol(s_x)))
 s_y = true_label_train_3_5[6122:6142]
-
-h = t(theta.final) %*% rbind(s_x, rep(1, ncol(s_x)))
+h <- 1 / (1 + exp(t(s_x) %*% theta.final))
 p = classify(theta.final, s_x)
+test_fit(p, s_y)
 
 
 
