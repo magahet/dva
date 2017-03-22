@@ -11,18 +11,18 @@ output: pdf_document
 Cost function:
 
 $$
-\theta_{MLE} = argmin_\theta \frac{1}{n}\sum_{i=1}^nlog(1+\exp(y^i<\theta,x^i>)
+J(\theta) = \sum_{i=1}^nlog(1+\exp(y^i<\theta,x^i>)
 $$
 We'll add a constant $1/n$ to scale the update by the number of training samples.
 Update function:
 
 $$
 \begin{aligned}
-\theta_j & \leftarrow \theta_j - \alpha \frac{1}{n} \frac{\partial}{\partial\theta_j}\sum_{i=1}^n log(1+\exp(y^i<\theta,x^i>))\\\\
-& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{1}{1+\exp(y^i<\theta,x^i>)} \cdot \frac{\partial}{\partial \theta_j} \exp(y^i<\theta,x^i>)\\\\
-& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot \frac{\partial}{\partial \theta_j} y^i <\theta,x^i>}{1+\exp(y^i<\theta,x^i>)}\\\\
-& = \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot y^i x^i_j}{1+\exp(y^i<\theta,x^i>)}\\\\
-&= \theta_j - \alpha \frac{1}{n} \sum_{i=1}^n \frac{y^ix^i}{1+\exp(-y^i<\theta,x^i>)}
+\theta_j & \leftarrow \theta_j - \alpha \frac{\partial}{\partial\theta_j}\sum_{i=1}^n log(1+\exp(y^i<\theta,x^i>))\\\\
+& = \theta_j - \alpha \sum_{i=1}^n \frac{1}{1+\exp(y^i<\theta,x^i>)} \cdot \frac{\partial}{\partial \theta_j} \exp(y^i<\theta,x^i>)\\\\
+& = \theta_j - \alpha \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot \frac{\partial}{\partial \theta_j} y^i <\theta,x^i>}{1+\exp(y^i<\theta,x^i>)}\\\\
+& = \theta_j - \alpha \sum_{i=1}^n \frac{\exp(y^i<\theta,x^i>) \cdot y^i x^i_j}{1+\exp(y^i<\theta,x^i>)}\\\\
+&= \theta_j - \alpha \sum_{i=1}^n \frac{y^ix^i}{1+\exp(-y^i<\theta,x^i>)}
 \end{aligned}
 $$
 
@@ -40,15 +40,73 @@ note: $<\theta, x^i>$ is constant with the exception of $\theta_j \cdot x_j^i$
 
 ### b. Write pseudocode for training a model using Logistic Regression. 
 
+```{psudo}
+Calculate negative log likelyhood for a given x, y, and theta
+function calc_cost(x, y, theta):
+  return 1/(log(1 + exp(y *<theta, x>)))
+
+x = training matrix (n examples x d features)
+y = training labels (n labels of -1 or 1)
+
 set x^i_0 = 1 # for bias term
 alpha = <some learning rate>
-threshold = <some threshold value>
-theta = <random vector of size d (feature count)>
+epsilon = <some stopping threshold value>
+theta = generate random vector of size d+1 (feature count + bias)
+cost = calc_cost(theta)
+delta_cost = cost # tracks change in the cost function
 
-while true:
-  last_theta = theta
-  gradiant = (1/n) * sum()
+while delta_cost > epsilon:
+  theta = theta - alpha * sum((y*x) / (1 + exp(-y * <theta, x>)))
+  new_cost = calc_cost(x, y, theta)
+  delta_cost = cost - new_cost 
+  cost = new_cost
   
+theta is now trained against the sample set
+ ``` 
 
 
 ### c. Calculate the number of operations per gradient descent iteration. (Hint: Use variable n for number of examples and d for dimensionality.) 
+
+
+$$
+\begin{aligned}
+\sum_{i=1}^n f(i) & = O(n\cdot f(i))\\\\
+y^i \cdot x^i & = O(d)\\\\
+<\theta, x^i> & = O(d)\\\\
+y^i \cdot h & = O(d)\\\\
+\frac{f() \cdot g(d)}{1 + exp(h(d))} & = O(d)\\\\
+\therefore\\\\
+\sum_{i=1}^n \frac{y^ix^i}{1+\exp(-y^i<\theta,x^i>)} & = O(nd)
+\end{aligned}
+$$
+
+There are a number of computations that are linear wrt d. The summation across samples adds the multiplicative factor n.
+
+## 3. Training 
+ 
+### a. Train 2 models, one on the train_0_1 set and another on train_3_5, and report the training and test accuracies. 
+
+train_0_1 accuracy:  0.99242005527043
+test_0_1 accuracy:  0.998108747044917
+
+train_3_5 accuracy:  0.918022853185596
+test_3_5 accuracy:  0.922187171398528
+
+### b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
+
+Average train_0_1 accuracy:  0.993430714567706
+Average test_0_1 accuracy:  0.997115839243499
+
+Average train_3_5 accuracy:  0.942096606648199
+Average test_3_5 accuracy:  0.946898002103049
+
+### c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy. Also, explain why do you think this difference might be.
+
+There is a diference of ~0.05 between the average accuracy on 0/1 classification vs 3/5 classification. This is likely explained by the similarity between the characters being recognized in the 3/5 case compared to 0/1. The 3/5 samples do not have as clear of a decision boundary and therefore training and testing samples are being misclassified more often.
+
+
+### d. This assignment deals with binary classification. Explain what you would do if you had more than two classes to classify, using logistic regression. 
+
+I would split the task into multiple binary classification sub-tasks. For example, in the case of labels: (A, B, C), I would train logistic regression models for (A, non-A), (B, non-B), (C, non-C). 
+
+Predicting with each of these models, I would choose the prediction with the highest probability and apply that label.

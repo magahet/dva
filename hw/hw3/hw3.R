@@ -143,9 +143,12 @@ logistic.regression <- function(x, y, alpha=0.1, delta_alpha=0.9, epsilon=1e-4, 
     if (iterations %% 100 == 0) {
       cost.log <- c(cost.log, cost(x, y, theta))
       delta_cost <- abs(diff(tail(cost.log, 2))) / tail(cost.log, 2)[1]
+      flush.console()
+      plot(cost.log, type='l', main="Learning curve", xlab="iterations (00s)", ylab="cost")
     }
   }
   
+  flush.console()
   plot(cost.log, type='l', main="Learning curve", xlab="iterations (00s)", ylab="cost")
   
   print(paste('Training iterations: ', iterations))
@@ -191,20 +194,44 @@ accuracy <- function(theta, x, y) {
 
 # 3. Training
 
+alpha=0.03
+epsilon=3e-3
+stocastic=TRUE
+max_iterations=1e5
+
 # a. Train 2 models, one on the train_0_1 set and another on train_3_5, and report the training and test accuracies. 
-theta_0_1 <- logistic.regression(train_0_1, true_label_train_0_1, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
+theta_0_1 <- logistic.regression(train_0_1, true_label_train_0_1, alpha=alpha, epsilon=epsilon, stocastic=stocastic, max_iterations=max_iterations)
+theta_3_5 <- logistic.regression(train_3_5, true_label_train_3_5, alpha=alpha, epsilon=epsilon, stocastic=stocastic, max_iterations=max_iterations)
+
+print(paste('train_0_1 accuracy: ', accuracy(theta_0_1, train_0_1, true_label_train_0_1)))
 print(paste('test_0_1 accuracy: ', accuracy(theta_0_1, test_0_1, true_label_test_0_1)))
 
-theta_3_5 <- logistic.regression(train_3_5, true_label_train_3_5, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
+print(paste('train_3_5 accuracy: ', accuracy(theta_3_5, train_3_5, true_label_train_3_5)))
 print(paste('test_3_5 accuracy: ', accuracy(theta_3_5, test_3_5, true_label_test_3_5)))
 
 # b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
 
-sum_accuracy_3_5 <- 0
+accuracy_train_0_1 <- vector()
+accuracy_train_3_5 <- vector()
+accuracy_test_0_1 <- vector()
+accuracy_test_3_5 <- vector()
+
 for (i in 1:10) {
-  theta <- logistic.regression(train_3_5, true_label_train_3_5, alpha=0.03, epsilon=1e-4, stocastic=TRUE, max_iterations=10000)
-  sum_accuracy_3_5 <- sum_accuracy_3_5 + accuracy(theta_3_5, test_3_5, true_label_test_3_5)
+  theta_0_1 <- logistic.regression(train_0_1, true_label_train_0_1, alpha=alpha, epsilon=epsilon, stocastic=stocastic, max_iterations=max_iterations)
+  theta_3_5 <- logistic.regression(train_3_5, true_label_train_3_5, alpha=alpha, epsilon=epsilon, stocastic=stocastic, max_iterations=max_iterations)
+  
+  accuracy_train_0_1 <- c(accuracy_train_0_1 , accuracy(theta_0_1, train_0_1, true_label_train_0_1))
+  accuracy_test_0_1 <- c(accuracy_test_0_1 , accuracy(theta_0_1, test_0_1, true_label_test_0_1))
+  
+  accuracy_train_3_5 <- c(accuracy_train_3_5 , accuracy(theta_3_5, train_3_5, true_label_train_3_5))
+  accuracy_test_3_5 <- c(accuracy_test_3_5 , accuracy(theta_3_5, test_3_5, true_label_test_3_5))
 }
+
+print(paste('Average train_0_1 accuracy: ', mean(accuracy_train_0_1)))
+print(paste('Average test_0_1 accuracy: ', mean(accuracy_test_0_1)))
+print(paste('Average train_3_5 accuracy: ', mean(accuracy_train_3_5)))
+print(paste('Average test_3_5 accuracy: ', mean(accuracy_test_3_5)))
+
 # c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy. Also, explain why do you think this difference might be. 
 
 # d. This assignment deals with binary classification. Explain what you would do if you had more than two classes to classify, using logistic regression. 
