@@ -107,6 +107,43 @@ There is a diference of ~0.05 between the average accuracy on 0/1 classification
 
 ### d. This assignment deals with binary classification. Explain what you would do if you had more than two classes to classify, using logistic regression. 
 
-I would split the task into multiple binary classification sub-tasks. For example, in the case of labels: (A, B, C), I would train logistic regression models for (A, non-A), (B, non-B), (C, non-C). 
+I would split the task into multiple binary classification sub-tasks. For example, in the case of labels: (A, B, C), I would train logistic regression models for (A, non-A), (B, non-B), (C, non-C).
 
 Predicting with each of these models, I would choose the prediction with the highest probability and apply that label.
+
+
+## 4. Evaluation 
+ 
+### a. Experiment with different initializations of the parameter used for gradient descent. Clearly mention the initial values of the parameter tried, run the same experiment as 3b using this initialization, report the average test and train accuracies obtained by using this initialization, mention which is set of initializations is the better. 
+
+The baseline initial theta is set with random values between 0 and 1. The alternate theta is set with a uniform set of very small values (1e-9).
+
+Average baseline train_3_5 accuracy:  0.942096606648199
+Average baseline test_3_5 accuracy:  0.946898002103049
+
+Average alternate theta train_3_5 accuracy: 0.959764542936288
+Average alternate theta test_3_5 accuracy: 0.960199789695058
+
+The alternate initial theta (small uniform values) had a higher average accuracy. This could be explained by the fact that most features (pixels) contribute nothing to the classification task. Random initial theta values for those features would need to be trained away. Near zero initial theta values seem to work better for data with many non-contributing features.
+
+
+### b. Experiment with different convergence criteria for gradient descent. Clearly mention the new criteria tried, run the same experiment as 3b using this new criteria, report average test and train accuracies obtained using this criteria, mention which set of criteria is better. 
+
+The baseline stopping criteria is when the cost function (average negative log likelyhood) falls below a set threshold (1e-3 in this case).
+
+The alternative stopping criteria is when the l1-norm of the lastest change in theta falls below a set threshold. Threshold values of 1e-3 to 1e-12 were tested.
+
+Average baseline train_3_5 accuracy:  0.942096606648199
+Average baseline test_3_5 accuracy:  0.946898002103049
+
+Average alternate stop train_3_5 accuracy: 0.530730609418283
+Average alternate stop test_3_5 accuracy: 0.531019978969506
+
+The alternative stopping criteria resulted in much lower average accuracy, even with very low threshold values. This could be explained by the use of stocastic vs batch gradient decent. It could be that the change in theta does not decrease as steadily as the negative log likelyhood, and this causes training to terminate permaturely.
+
+
+## 5. Learning Curves 
+ 
+### a. For each set of classes (0,1 and 3,5), choose the following sizes to train on: 5%, 10%, 15% ... 100% (i.e. 20 training set sizes). For each training set size, sample that many inputs from the respective complete training set (i.e. train_0_1 or train_3_5). Train your model on each subset selected, test it on the corresponding test set (i.e. test_0_1 or test_3_5), and graph the training and test set accuracy over each split (you should end up with TWO graphs - one showing training & test accuracy for 0,1 and another for 3,5 set). Remember to average the accuracy over 10 different divisions of the data each of the above sizes so the graphs will be less noisy. Comment on the trends of accuracy values you observe for each set. 
+
+### b. Repeat 5a, but instead of plotting accuracies, plot the logistic loss/negative log likelihood when training and testing, for each size. Comment on the trends of loss values you observe for each set. 
