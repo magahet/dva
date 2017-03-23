@@ -1,5 +1,8 @@
 #!/usr/bin/Rscript
 
+library(ggplot2)
+library(reshape2)
+
 # GT aciterations name: mmendiola3
 
 # 0. Data Preprocessing
@@ -121,7 +124,7 @@ logistic.regression <- function(x, y, alpha=0.03, epsilon=1e-3, max_iterations=1
     if (verbose && as.numeric(Sys.time() - last.time) > 3) {
       print(paste('Training iterations:', iterations))
       print(paste('Delta cost:', delta_cost))
-      print(paste('Training accuracy:', accuracy(theta, x, y)))
+      print(paste('Training accuracy:', accuracy(x, y, theta)))
       last.time <- Sys.time()
     }
     
@@ -158,13 +161,16 @@ logistic.regression <- function(x, y, alpha=0.03, epsilon=1e-3, max_iterations=1
   print(paste('Training iterations:', iterations))
   print(paste('Delta cost:', delta_cost))
   print(paste('Elapsed time:', round(as.numeric(Sys.time() - start.time)), ' sec'))
-  print(paste('Training accuracy:', accuracy(theta, x, y)))
+  print(paste('Training accuracy:', accuracy(x, y, theta)))
   return(theta)
 }
 
 # Cost Function... negative log likelyhood
 
 cost <- function(x, y, theta) {
+  if (length(theta) == nrow(x) + 1) {
+    x <- rbind(x, rep(1, ncol(x)))
+  }
   return(mean(log(1 + exp(y * t(x) %*% theta))))
 }
 
@@ -187,7 +193,7 @@ test_fit <- function(p, y) {
 }
 
 # Calculate the accuracy of a given theta against a set of samples
-accuracy <- function(theta, x, y) {
+accuracy <- function(x, y, theta) {
   if (length(theta) == nrow(x) + 1) {
     x <- rbind(x, rep(1, ncol(x)))
   }
@@ -202,37 +208,42 @@ accuracy <- function(theta, x, y) {
 theta_0_1 <- logistic.regression(train_0_1, true_label_train_0_1)
 theta_3_5 <- logistic.regression(train_3_5, true_label_train_3_5)
 
-print(paste('train_0_1 accuracy:', accuracy(theta_0_1, train_0_1, true_label_train_0_1)))
-print(paste('test_0_1 accuracy:', accuracy(theta_0_1, test_0_1, true_label_test_0_1)))
+print(paste('train_0_1 accuracy:', accuracy(train_0_1, true_label_train_0_1, theta_0_1)))
+print(paste('test_0_1 accuracy:', accuracy(test_0_1, true_label_test_0_1, theta_0_1)))
 
-print(paste('train_3_5 accuracy:', accuracy(theta_3_5, train_3_5, true_label_train_3_5)))
-print(paste('test_3_5 accuracy:', accuracy(theta_3_5, test_3_5, true_label_test_3_5)))
+print(paste('train_3_5 accuracy:', accuracy(train_3_5, true_label_train_3_5, theta_3_5)))
+print(paste('test_3_5 accuracy:', accuracy(test_3_5, true_label_test_3_5, theta_3_5)))
 
 # b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set.
 # Calculate the average train and test accuracies over the 10 runs, and report them. 
 
-avg_reg <- function(x, y, test_x, test_y, theta=NULL, epsilon=1e-3, alternate_stop=FALSE) {
-  accuracy_train <- vector()
-  accuracy_test <- vector()
+avg_reg <- function(x, y, test_x, test_y, theta=NULL, epsilon=1e-3, alternate_stop=FALSE, return_cost=FALSE) {
+  result_train <- vector()
+  result_test <- vector()
   
   for (i in 1:10) {
     print(paste('Running experiment', i))
     theta <- logistic.regression(x, y, theta=theta, epsilon=epsilon, alternate_stop=alternate_stop)
-    accuracy_train <- c(accuracy_train, accuracy(theta, x, y))
-    accuracy_test <- c(accuracy_test, accuracy(theta, test_x, test_y))
+    if (return_cost) {
+      result_train <- c(result_train, cost(x, y, theta))
+      result_test <- c(result_test, cost(test_x, test_y, theta))
+    } else {
+      result_train <- c(result_train, accuracy(x, y, theta))
+      result_test <- c(result_test, accuracy(test_x, test_y, theta))
+    }
   }
   
-  return(c(mean(accuracy_train), mean(accuracy_test)))
+  return(list(train=mean(result_train), test=mean(result_test)))
 }
   
 accuracy_0_1 <- avg_reg(train_0_1, true_label_train_0_1, test_0_1, true_label_test_0_1)
 accuracy_3_5 <- avg_reg(train_3_5, true_label_train_3_5, test_3_5, true_label_test_3_5)
 
-print(paste('Average train_0_1 accuracy:', mean(accuracy_0_1[1])))
-print(paste('Average test_0_1 accuracy:', mean(accuracy_0_1[2])))
+print(paste('Average train_0_1 accuracy:', mean(accuracy_0_1$train)))
+print(paste('Average test_0_1 accuracy:', mean(accuracy_0_1$test)))
 
-print(paste('Average train_3_5 accuracy:', mean(accuracy_3_5[1])))
-print(paste('Average test_3_5 accuracy:', mean(accuracy_3_5[2])))
+print(paste('Average train_3_5 accuracy:', mean(accuracy_3_5$train)))
+print(paste('Average test_3_5 accuracy:', mean(accuracy_3_5$test)))
 
 
 # c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy.
@@ -258,8 +269,8 @@ print(paste('Average test_3_5 accuracy:', mean(accuracy_3_5[2])))
 
 theta <- as.matrix(rep(1e-9, nrow(train_3_5) + 1))
 accuracy_alternate_theta <- avg_reg(train_3_5, true_label_train_3_5, test_3_5, true_label_test_3_5, theta=theta)
-print(paste('Average alternate theta train_3_5 accuracy:', mean(accuracy_alternate_theta[1])))
-print(paste('Average alternate theta test_3_5 accuracy:', mean(accuracy_alternate_theta[2])))
+print(paste('Average alternate theta train_3_5 accuracy:', mean(accuracy_alternate_theta$train)))
+print(paste('Average alternate theta test_3_5 accuracy:', mean(accuracy_alternate_theta$test)))
 
 # b. Experiment with different convergence criteria for gradient descent. Clearly mention 
 # the new criteria tried, run the same experiment as 3b using this new criteria, report 
@@ -267,8 +278,8 @@ print(paste('Average alternate theta test_3_5 accuracy:', mean(accuracy_alternat
 # criteria is better. 
 
 accuracy_alternate_stop <- avg_reg(train_3_5, true_label_train_3_5, test_3_5, true_label_test_3_5, epsilon=1e-12, alternate_stop=TRUE)
-print(paste('Average alternate stop train_3_5 accuracy:', mean(accuracy_alternate_stop[1])))
-print(paste('Average alternate stop test_3_5 accuracy:', mean(accuracy_alternate_stop[2])))
+print(paste('Average alternate stop train_3_5 accuracy:', mean(accuracy_alternate_stop$train)))
+print(paste('Average alternate stop test_3_5 accuracy:', mean(accuracy_alternate_stop$test)))
 
 
 # 5. Learning Curves
@@ -283,9 +294,61 @@ print(paste('Average alternate stop test_3_5 accuracy:', mean(accuracy_alternate
 # divisions of the data each of the above sizes so the graphs will be less noisy. 
 # Comment on the trends of accuracy values you observe for each set. 
 
+build_training_sample <- function(train_x, train_y, ratio) {
+  indecies <- sample(1:ncol(train_x),  as.integer(ratio * ncol(train_x)))
+  return(list(x=train_x[,indecies], y=train_y[indecies]))
+}
+
+plot_sub_data <- function(df, title, data_type) {
+  df <- melt(df, id.vars='size')
+  print(ggplot(df, aes(size, value, color=variable)) +
+    geom_line() +
+    geom_point() +
+    ggtitle(title) +
+    labs(x='Sample size (ratio of original training sample)', y=data_type))
+}
+
+accuracy_sub_0_1 <- data.frame()
+accuracy_sub_3_5 <- data.frame()
+for (i in seq(0.05, 1.0, 0.05)) {
+  sample_0_1 <- build_training_sample(train_0_1, true_label_train_0_1, i)
+  accuracy_sub_0_1 <- rbind(accuracy_sub_0_1,
+                            c(avg_reg(sample_0_1$x, sample_0_1$y, test_0_1, true_label_test_0_1), size=i))
+  
+  sample_3_5 <- build_training_sample(train_3_5, true_label_train_3_5, i)
+  accuracy_sub_3_5 <- rbind(accuracy_sub_3_5,
+                            c(avg_reg(sample_3_5$x, sample_3_5$y, test_3_5, true_label_test_3_5), size=i))
+  
+  flush.console()
+  plot_sub_data(accuracy_sub_3_5, '3/5 Accuracy vs. Sample size', 'Accuracy')
+}
+
+flush.console()
+plot_sub_data(accuracy_sub_0_1, '0/1 Accuracy vs. Sample size', 'Accuracy')
+plot_sub_data(accuracy_sub_3_5, '3/5 Accuracy vs. Sample size', 'Accuracy')
+
 # b. Repeat 5a, but instead of plotting accuracies, plot the logistic loss/negative log 
 # likelihood when training and testing, for each size. Comment on the trends of loss 
 # values you observe for each set. 
+
+neg_log_likelyhood_sub_0_1 <- data.frame()
+neg_log_likelyhood_sub_3_5 <- data.frame()
+for (i in seq(0.05, 1.0, 0.05)) {
+  sample_0_1 <- build_training_sample(train_0_1, true_label_train_0_1, i)
+  neg_log_likelyhood_sub_0_1 <- rbind(neg_log_likelyhood_sub_0_1,
+                                      c(avg_reg(sample_0_1$x, sample_0_1$y, test_0_1, true_label_test_0_1, return_cost=TRUE), size=i))
+  
+  sample_3_5 <- build_training_sample(train_3_5, true_label_train_3_5, i)
+  neg_log_likelyhood_sub_3_5 <- rbind(neg_log_likelyhood_sub_3_5,
+                                      c(avg_reg(sample_3_5$x, sample_3_5$y, test_3_5, true_label_test_3_5, return_cost=TRUE), size=i))
+  
+  flush.console()
+  plot_sub_data(neg_log_likelyhood_sub_3_5, '3/5 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
+}
+
+flush.console()
+plot_sub_data(neg_log_likelyhood_sub_0_1, '0/1 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
+plot_sub_data(neg_log_likelyhood_sub_3_5, '3/5 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
 
 
 # MISC
