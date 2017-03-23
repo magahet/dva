@@ -13,8 +13,8 @@ Cost function:
 $$
 J(\theta) = \sum_{i=1}^nlog(1+\exp(y^i<\theta,x^i>)
 $$
-We'll add a constant $1/n$ to scale the update by the number of training samples.
-Update function:
+
+**Update function:**
 
 $$
 \begin{aligned}
@@ -30,25 +30,26 @@ note: $<\theta, x^i>$ is constant with the exception of $\theta_j \cdot x_j^i$
 
 **Terms:**
 
-- $\theta_j$ : The value of the current parameter vector at feature index j
-- $\alpha$ : The learning rate, which decreases over each training iteration
+- $\theta_j$ : The value of the current parameter vector
+- $\alpha$ : The learning rate, which scales the changes to $theta_j$ to control the velocity of gradient decent
 - $n$ : The number of training samples
 - $y^i$ : The classification label for training sample index $i$
 - $x^i$ : The feature vector for training sample index $i$
-- $<\theta, x^i>$ : The dot product of the parameter vector and the training sample at index $i$
+- $<\theta, x^i>$ : The dot product of the parameter vector and the training sample at index $i$. This can be interpreted as the prediction of a label for a given $\theta$ applied to an individual sample.
 
+\newpage
 
 ### b. Write pseudocode for training a model using Logistic Regression. 
 
 ```{psudo}
 Calculate negative log likelyhood for a given x, y, and theta
 function calc_cost(x, y, theta):
-  return 1/(log(1 + exp(y *<theta, x>)))
+  return sum(1/(log(1 + exp(y * <theta, x>))))
 
 x = training matrix (n examples x d features)
 y = training labels (n labels of -1 or 1)
 
-set x^i_0 = 1 # for bias term
+add a feature to each sample in x with a value of 1 for the bias term
 alpha = <some learning rate>
 epsilon = <some stopping threshold value>
 theta = generate random vector of size d+1 (feature count + bias)
@@ -86,19 +87,23 @@ There are a number of computations that are linear wrt d. The summation across s
  
 ### a. Train 2 models, one on the train_0_1 set and another on train_3_5, and report the training and test accuracies. 
 
+```
 train_0_1 accuracy:  0.99242005527043
 test_0_1 accuracy:  0.998108747044917
 
 train_3_5 accuracy:  0.918022853185596
 test_3_5 accuracy:  0.922187171398528
+```
 
 ### b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
 
+```
 Average train_0_1 accuracy:  0.993430714567706
 Average test_0_1 accuracy:  0.997115839243499
 
 Average train_3_5 accuracy:  0.942096606648199
 Average test_3_5 accuracy:  0.946898002103049
+```
 
 ### c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy. Also, explain why do you think this difference might be.
 
@@ -118,11 +123,13 @@ Predicting with each of these models, I would choose the prediction with the hig
 
 The baseline initial theta is set with random values between 0 and 1. The alternate theta is set with a uniform set of very small values (1e-9).
 
+```
 Average baseline train_3_5 accuracy:  0.942096606648199
 Average baseline test_3_5 accuracy:  0.946898002103049
 
 Average alternate theta train_3_5 accuracy: 0.959764542936288
 Average alternate theta test_3_5 accuracy: 0.960199789695058
+```
 
 The alternate initial theta (small uniform values) had a higher average accuracy. This could be explained by the fact that most features (pixels) contribute nothing to the classification task. Random initial theta values for those features would need to be trained away. Near zero initial theta values seem to work better for data with many non-contributing features.
 
@@ -133,11 +140,13 @@ The baseline stopping criteria is when the cost function (average negative log l
 
 The alternative stopping criteria is when the l1-norm of the lastest change in theta falls below a set threshold. Threshold values of 1e-3 to 1e-12 were tested.
 
+```
 Average baseline train_3_5 accuracy:  0.942096606648199
 Average baseline test_3_5 accuracy:  0.946898002103049
 
 Average alternate stop train_3_5 accuracy: 0.530730609418283
 Average alternate stop test_3_5 accuracy: 0.531019978969506
+```
 
 The alternative stopping criteria resulted in much lower average accuracy, even with very low threshold values. This could be explained by the use of stocastic vs batch gradient decent. It could be that the change in theta does not decrease as steadily as the negative log likelyhood, and this causes training to terminate permaturely.
 
