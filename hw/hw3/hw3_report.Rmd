@@ -146,22 +146,33 @@ The alternative stopping criteria resulted in much lower average accuracy, even 
  
 ### a. For each set of classes (0,1 and 3,5), choose the following sizes to train on: 5%, 10%, 15% ... 100% (i.e. 20 training set sizes). For each training set size, sample that many inputs from the respective complete training set (i.e. train_0_1 or train_3_5). Train your model on each subset selected, test it on the corresponding test set (i.e. test_0_1 or test_3_5), and graph the training and test set accuracy over each split (you should end up with TWO graphs - one showing training & test accuracy for 0,1 and another for 3,5 set). Remember to average the accuracy over 10 different divisions of the data each of the above sizes so the graphs will be less noisy. Comment on the trends of accuracy values you observe for each set. 
 
-A random sample of sizes 0.05 to 1.0 times the original sample was taken at 0.05 increments. 10 training runs were performed for each sample, and the average accuracy is shown in figure \figure{01-accuracy} and \figure{35-accuracy}. In the 1/0 example, accuracy remains fairly consistant other than an initial drop in training accuracy. Test accuracy also remains higher than training accuracy after a sample size of 0.05.
+![01-accuracy\label{01-accuracy}](fig/01-accuracy.png){#id .class width=60%}
+
+A random sample of sizes 0.05 to 1.0 times the original sample was taken at 0.05 increments. 10 training runs were performed for each sample, and the average accuracy is shown in figure \ref{01-accuracy} and \ref{35-accuracy}. In the 1/0 example, accuracy remains fairly consistant other than an initial drop in training accuracy. Test accuracy also remains higher than training accuracy after a sample size of 0.05.
 
 The stability indicates that very few training samples were needed to train a accurate model. The seperation between test and train accuracies could indicate that the training data is more noisy, while the test set includes more clearly distinguishable characters.
 
-![01-accuracy\label{01-accuracy}](fig/01-accuracy.png){#id .class width=60%}
-
-The 3/5 accuracy plot shows that accur
 
 ![35-accuracy\label{35-accuracy}](fig/35-accuracy.png){#id .class width=60%}
+
+The 3/5 accuracy plot shows that training and test accuracies start apart, with with training having near perfect accuracy. As sample size increases, training decreases and test increases.
+
+The dropping training accuracy shows the model having a harder time fitting all the available data as the sample size increases. Test accuracy increases as the model is able to generate a theta that is more generalized. In this case, testing and training accuracies converged, which indicates similar quality examples in each set.
+
 
 
 ### b. Repeat 5a, but instead of plotting accuracies, plot the logistic loss/negative log likelihood when training and testing, for each size. Comment on the trends of loss values you observe for each set. 
 
 ![01-neg-log-likelyhood\label{01-neg-log-likelyhood}](fig/01-neg-log-likelyhood.png){#id .class width=60%}
 
+Figure \ref{01-neg-log-likelyhood} and \ref{35-neg-log-likelyhood} shows the train and test costs (negative log likelyhood) over various training set sizes. We see in the 0/1 plot a similar result (inverted) as the accuracy plot. Test cost remains relatively stable. Training cost starts lower than test cost and increases after about 0.3 times the full training set. Training cost remains seperate and higher than test from then on.
+
+As with the accuracy plot, this behavior could be explained by a regression model that requires only a small training sample to build an high likelyhood predictor. The seperation matches the accuracy plot is possibly the result of cleaner test sample images than is used in the training set.
+
+
 ![35-neg-log-likelyhood\label{35-neg-log-likelyhood}](fig/35-neg-log-likelyhood.png){#id .class width=60%}
+
+Finally, the negative log likelyhood plot for the 3/5 regression task shows a similar behavior (inverted) to the accuracy plot. Cost drops on the test set while cost raises for the training set, as a result of the model's increasing generalization with more training data. The convergents between test and training cost shows the sample quality is similar between the two sets.
 
 
 
