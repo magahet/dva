@@ -4,6 +4,13 @@ author: "mmendiola3"
 output: pdf_document
 ---
 
+## 0. Data Preprocessing
+
+**Sample Images:**
+
+![images\label{images}](fig/images.png){#id .class width=60%}
+
+
 ## 1. Theory
 
 ### a. Write down the formula for computing the gradient of the loss function used in Logistic Regression. Specify what each variable represents in the equation. 
@@ -37,12 +44,11 @@ note: $<\theta, x^i>$ is constant with the exception of $\theta_j \cdot x_j^i$
 - $x^i$ : The feature vector for training sample index $i$
 - $<\theta, x^i>$ : The dot product of the parameter vector and the training sample at index $i$. This can be interpreted as the prediction of a label for a given $\theta$ applied to an individual sample.
 
-\newpage
 
 ### b. Write pseudocode for training a model using Logistic Regression. 
 
 ```{psudo}
-Calculate negative log likelyhood for a given x, y, and theta
+Calculate negative log likelihood for a given x, y, and theta
 function calc_cost(x, y, theta):
   return sum(1/(log(1 + exp(y * <theta, x>))))
 
@@ -61,8 +67,6 @@ while delta_cost > epsilon:
   new_cost = calc_cost(x, y, theta)
   delta_cost = cost - new_cost 
   cost = new_cost
-  
-theta is now trained against the sample set
  ``` 
 
 
@@ -95,7 +99,7 @@ train_3_5 accuracy:  0.918022853185596
 test_3_5 accuracy:  0.922187171398528
 ```
 
-### b. Repeat 3a 10 times, i.e. you should obtain 10 train and test accuracies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
+### b. Repeat 3a 10 times, i.e. you should obtain 10 train and test curacies for each set. Calculate the average train and test accuracies over the 10 runs, and report them. 
 
 ```
 Average train_0_1 accuracy:  0.993430714567706
@@ -107,7 +111,7 @@ Average test_3_5 accuracy:  0.946898002103049
 
 ### c. For 0,1 and 3,5 cases, explain if you observe any difference you in accuracy. Also, explain why do you think this difference might be.
 
-There is a diference of ~0.05 between the average accuracy on 0/1 classification vs 3/5 classification. This is likely explained by the similarity between the characters being recognized in the 3/5 case compared to 0/1. The 3/5 samples do not have as clear of a decision boundary and therefore training and testing samples are being misclassified more often.
+There is a difference of ~0.05 between the average accuracy on 0/1 classification vs 3/5 classification. This is likely explained by the similarity between the characters being recognized in the 3/5 case compared to 0/1. The 3/5 samples do not have as clear of a decision boundary and therefore training and testing samples are being misclassified more often.
 
 
 ### d. This assignment deals with binary classification. Explain what you would do if you had more than two classes to classify, using logistic regression. 
@@ -136,9 +140,9 @@ The alternate initial theta (small uniform values) had a higher average accuracy
 
 ### b. Experiment with different convergence criteria for gradient descent. Clearly mention the new criteria tried, run the same experiment as 3b using this new criteria, report average test and train accuracies obtained using this criteria, mention which set of criteria is better. 
 
-The baseline stopping criteria is when the cost function (average negative log likelyhood) falls below a set threshold (1e-3 in this case).
+The baseline stopping criteria is when the cost function (average negative log likelihood) falls below a set threshold (1e-3 in this case).
 
-The alternative stopping criteria is when the l1-norm of the lastest change in theta falls below a set threshold. Threshold values of 1e-3 to 1e-12 were tested.
+The alternative stopping criteria is when the l1-norm of the latest change in theta falls below a set threshold. Threshold values of 1e-3 to 1e-12 were tested.
 
 ```
 Average baseline train_3_5 accuracy:  0.942096606648199
@@ -148,7 +152,7 @@ Average alternate stop train_3_5 accuracy: 0.530730609418283
 Average alternate stop test_3_5 accuracy: 0.531019978969506
 ```
 
-The alternative stopping criteria resulted in much lower average accuracy, even with very low threshold values. This could be explained by the use of stocastic vs batch gradient decent. It could be that the change in theta does not decrease as steadily as the negative log likelyhood, and this causes training to terminate permaturely.
+The alternative stopping criteria resulted in much lower average accuracy, even with very low threshold values. This could be explained by the use of stochastic vs batch gradient decent. It could be that the change in theta does not decrease as steadily as the negative log likelihood, and this causes training to terminate prematurely.
 
 
 ## 5. Learning Curves 
@@ -157,14 +161,14 @@ The alternative stopping criteria resulted in much lower average accuracy, even 
 
 ![01-accuracy\label{01-accuracy}](fig/01-accuracy.png){#id .class width=60%}
 
-A random sample of sizes 0.05 to 1.0 times the original sample was taken at 0.05 increments. 10 training runs were performed for each sample, and the average accuracy is shown in figure \ref{01-accuracy} and \ref{35-accuracy}. In the 1/0 example, accuracy remains fairly consistant other than an initial drop in training accuracy. Test accuracy also remains higher than training accuracy after a sample size of 0.05.
+A random sample of sizes 0.05 to 1.0 times the original sample was taken at 0.05 increments. 10 training runs were performed for each sample, and the average accuracy is shown in figure \ref{01-accuracy} and \ref{35-accuracy}. In the 1/0 example, accuracy remains fairly consistent other than an initial drop in training accuracy. Test accuracy also remains higher than training accuracy after a sample size of 0.05.
 
-The stability indicates that very few training samples were needed to train a accurate model. The seperation between test and train accuracies could indicate that the training data is more noisy, while the test set includes more clearly distinguishable characters.
+The stability indicates that very few training samples were needed to train an accurate model. The separation between test and train accuracies could indicate that the training data is more noisy, while the test set includes more clearly distinguishable characters.
 
 
 ![35-accuracy\label{35-accuracy}](fig/35-accuracy.png){#id .class width=60%}
 
-The 3/5 accuracy plot shows that training and test accuracies start apart, with with training having near perfect accuracy. As sample size increases, training decreases and test increases.
+The 3/5 accuracy plot shows that training and test accuracies start apart, with training having near perfect accuracy. As sample size increases, training decreases and test increases.
 
 The dropping training accuracy shows the model having a harder time fitting all the available data as the sample size increases. Test accuracy increases as the model is able to generate a theta that is more generalized. In this case, testing and training accuracies converged, which indicates similar quality examples in each set.
 
@@ -172,16 +176,16 @@ The dropping training accuracy shows the model having a harder time fitting all 
 
 ### b. Repeat 5a, but instead of plotting accuracies, plot the logistic loss/negative log likelihood when training and testing, for each size. Comment on the trends of loss values you observe for each set. 
 
-![01-neg-log-likelyhood\label{01-neg-log-likelyhood}](fig/01-neg-log-likelyhood.png){#id .class width=60%}
+![01-neg-log-likelihood\label{01-neg-log-likelihood}](fig/01-neg-log-likelihood.png){#id .class width=60%}
 
-Figure \ref{01-neg-log-likelyhood} and \ref{35-neg-log-likelyhood} shows the train and test costs (negative log likelyhood) over various training set sizes. We see in the 0/1 plot a similar result (inverted) as the accuracy plot. Test cost remains relatively stable. Training cost starts lower than test cost and increases after about 0.3 times the full training set. Training cost remains seperate and higher than test from then on.
+Figure \ref{01-neg-log-likelihood} and \ref{35-neg-log-likelihood} shows the train and test costs (negative log likelihood) over various training set sizes. We see in the 0/1 plot a similar result (inverted) as the accuracy plot. Test cost remains relatively stable. Training cost starts lower than test cost and increases after about 0.3 times the full training set. Training cost remains separate and higher than test from then on.
 
-As with the accuracy plot, this behavior could be explained by a regression model that requires only a small training sample to build an high likelyhood predictor. The seperation matches the accuracy plot is possibly the result of cleaner test sample images than is used in the training set.
+As with the accuracy plot, this behavior could be explained by a regression model that requires only a small training sample to build an high likelihood predictor. The separation matches the accuracy plot is possibly the result of cleaner test sample images than is used in the training set.
 
 
-![35-neg-log-likelyhood\label{35-neg-log-likelyhood}](fig/35-neg-log-likelyhood.png){#id .class width=60%}
+![35-neg-log-likelihood\label{35-neg-log-likelihood}](fig/35-neg-log-likelihood.png){#id .class width=60%}
 
-Finally, the negative log likelyhood plot for the 3/5 regression task shows a similar behavior (inverted) to the accuracy plot. Cost drops on the test set while cost raises for the training set, as a result of the model's increasing generalization with more training data. The convergents between test and training cost shows the sample quality is similar between the two sets.
+Finally, the negative log likelihood plot for the 3/5 regression task shows a similar behavior (inverted) to the accuracy plot. Cost drops on the test set while cost raises for the training set, as a result of the model's increasing generalization with more training data. The convergence between test and training cost shows the sample quality is similar between the two sets.
 
 
 

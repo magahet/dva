@@ -3,7 +3,7 @@
 library(ggplot2)
 library(reshape2)
 
-# GT aciterations name: mmendiola3
+# GT name: mmendiola3
 
 # 0. Data Preprocessing
 # a. Download the CSV files for the provided dataset. 
@@ -16,7 +16,7 @@ test <- as.matrix(read.csv('mnist_test.csv', header = FALSE))
 # c. Partition the training set for classification of 0, 1 and 3, 5 classes based on the class 
 # label (last row 785): train_0_1, train_3_5. 
 
-print('Seperating Training sets')
+print('Separating Training sets')
 
 train_0_1 <- train[,train[785,] <=1]
 train_0_1 <- train_0_1[1:784,]
@@ -26,7 +26,7 @@ train_3_5 <- train_3_5[1:784,]
 
 # d. Do the same for the test set: test_0_1, test_3_5. 
 
-print('Seperating Test sets')
+print('Separating Test sets')
 
 test_0_1 <- test[,test[785,] <=1]
 test_0_1 <- test_0_1[1:784,]
@@ -37,7 +37,7 @@ test_3_5 <- test_3_5[1:784,]
 # e. Separate the class label from all the partitions created
 # (remove row 785 from the actual data and store it as a separate vector). 
 
-print('Seperating Training labels and relabelling to -1/1')
+print('Separating Training labels and relabeling to -1/1')
 true_label_train_0_1 <- train[785, train[785,] <=1]
 true_label_train_0_1[true_label_train_0_1 == 0] <- -1
 
@@ -45,7 +45,7 @@ true_label_train_3_5 <- train[785, train[785,] >=3]
 true_label_train_3_5[true_label_train_3_5 == 3] <- -1
 true_label_train_3_5[true_label_train_3_5 == 5] <- 1
 
-print('Seperating Test labels')
+print('Separating Test labels')
 true_label_test_0_1 <- test[785, test[785,] <=1]
 true_label_test_0_1[true_label_test_0_1 == 0] <- -1
 
@@ -61,7 +61,7 @@ true_label_test_3_5[true_label_test_3_5 == 5] <- 1
 
 # g. Visualize 1 image from each class to ensure you have read in the data correctly. You 
 # will have 4 images corresponding to 0, 1, 3 and 5. You need to convert the 1D image 
-# data into 2D for visualisation. 
+# data into 2D for visualization. 
 
 print('Printing image samples from each set')
 
@@ -88,7 +88,7 @@ par(mfrow=c(1,1))
 # 2. Implementation
 
 compute.theta <- function(x, y, theta, alpha) {
-  # Stocastic gradient decent
+  # Stochastic gradient decent
   i <- sample(1:ncol(x), 1)
   yx = y[i] * x[,i]
   h = t(theta) %*% x[,i]
@@ -165,7 +165,7 @@ logistic.regression <- function(x, y, alpha=0.03, epsilon=1e-3, max_iterations=1
   return(theta)
 }
 
-# Cost Function... negative log likelyhood
+# Cost Function... negative log likelihood
 
 cost <- function(x, y, theta) {
   if (length(theta) == nrow(x) + 1) {
@@ -331,29 +331,21 @@ plot_sub_data(accuracy_sub_3_5, '3/5 Accuracy vs. Sample size', 'Accuracy')
 # likelihood when training and testing, for each size. Comment on the trends of loss 
 # values you observe for each set. 
 
-neg_log_likelyhood_sub_0_1 <- data.frame()
-neg_log_likelyhood_sub_3_5 <- data.frame()
+neg_log_likelihood_sub_0_1 <- data.frame()
+neg_log_likelihood_sub_3_5 <- data.frame()
 for (i in seq(0.05, 1.0, 0.05)) {
   sample_0_1 <- build_training_sample(train_0_1, true_label_train_0_1, i)
-  neg_log_likelyhood_sub_0_1 <- rbind(neg_log_likelyhood_sub_0_1,
+  neg_log_likelihood_sub_0_1 <- rbind(neg_log_likelihood_sub_0_1,
                                       c(avg_reg(sample_0_1$x, sample_0_1$y, test_0_1, true_label_test_0_1, return_cost=TRUE), size=i))
   
   sample_3_5 <- build_training_sample(train_3_5, true_label_train_3_5, i)
-  neg_log_likelyhood_sub_3_5 <- rbind(neg_log_likelyhood_sub_3_5,
+  neg_log_likelihood_sub_3_5 <- rbind(neg_log_likelihood_sub_3_5,
                                       c(avg_reg(sample_3_5$x, sample_3_5$y, test_3_5, true_label_test_3_5, return_cost=TRUE), size=i))
   
   flush.console()
-  plot_sub_data(neg_log_likelyhood_sub_3_5, '3/5 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
+  plot_sub_data(neg_log_likelihood_sub_3_5, '3/5 Negative Log likelihood vs. Sample size', 'Negative Log likelihood')
 }
 
 flush.console()
-plot_sub_data(neg_log_likelyhood_sub_0_1, '0/1 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
-plot_sub_data(neg_log_likelyhood_sub_3_5, '3/5 Negative Log Likelyhood vs. Sample size', 'Negative Log Likelyhood')
-
-
-# MISC
-s_x = rbind(train_3_5[,6122:6142], rep(1, ncol(s_x)))
-s_y = true_label_train_3_5[6122:6142]
-h <- 1 / (1 + exp(t(s_x) %*% theta_3_5))
-p = classify(theta_3_5, s_x)
-test_fit(p, s_y)
+plot_sub_data(neg_log_likelihood_sub_0_1, '0/1 Negative Log likelihood vs. Sample size', 'Negative Log likelihood')
+plot_sub_data(neg_log_likelihood_sub_3_5, '3/5 Negative Log likelihood vs. Sample size', 'Negative Log likelihood')
