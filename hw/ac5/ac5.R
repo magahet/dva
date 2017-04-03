@@ -1,4 +1,5 @@
 # Activity: Time Series Analysis
+# GID: mmendiola3
 
 library(zoo)  # basic time series package
 library(xts)  # eXtensible Time Series package
