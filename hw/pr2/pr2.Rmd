@@ -42,8 +42,15 @@ colnames(df)
 
 Load any R packages that you will need to use. You can come back to this chunk, edit it and re-run to load any additional packages later.
 
-```{r}
+```{r echo=FALSE}
 library(ggplot2)
+library(GGally)
+library(mice)
+library(reshape2)
+library(caret)
+library(mlbench)
+library(randomForest)
+library(dplyr)
 ```
 
 If you are using any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
@@ -144,6 +151,33 @@ Perform any additional preprocessing steps that you find necessary, such as deal
 
 ```{r}
 # TODO(optional): Additional preprocessing
+# Generate month feature to replace Released
+df$Month = as.numeric(format(df$Released, "%m"))
+
+# Convert Metascore to num
+df$Metascore <- as.numeric(df$Metascore)
+
+# Remove featues with clearly no correlation with Gross
+df <- subset(df, select=-c(Date, Released, Poster, imdbID, Type, tomatoImage, tomatoURL, BoxOffice, Website, Response, DaysDiff))
+
+# Remove features with high pairwise correlation values with remaining features
+# Remove the feature with more NAs
+# ggpairs(df[,c("tomatoMeter", "tomatoRating", "tomatoReviews", "tomatoFresh", "tomatoRotten", "tomatoUserMeter", "tomatoUserRating", "tomatoUserReviews", "imdbRating", "imdbVotes")])
+
+# Remove features with more than 10% NAs
+pMiss <- function(x){round(sum(is.na(x))/length(x)*100)}
+mc <- apply(df, 2, pMiss)
+columns_to_keep <- names(mc[mc < 10])
+df <- subset(df, select=columns_to_keep)
+df_numeric <- df[, sapply(df, is.numeric)]
+
+# Remove high correlation features
+cor_matrix <- cor(subset(df_numeric, select=-Gross), use='pairwise.complete.obs')
+high_cor <- colnames(cor_matrix[, findCorrelation(cor_matrix, cutoff=0.75)])
+df <- subset(df, select=-c(tomatoUserMeter, tomatoUserRating))
+
+# Remove samples with NAs
+df <- df[complete.cases(df), ]
 ```
 
 _**Note**: Do NOT convert categorical variables (like `Genre`) into binary columns yet. You will do that later as part of a model improvement task._
@@ -174,6 +208,86 @@ In each of the tasks described in the next section, you will build a regression 
 
 You can define a helper function that applies this procedure to a given model and reuse it.
 
+```{r}
+
+plot_sub_data <- function(df, title, data_type) {
+  df <- melt(df, id.vars='train_size', measure.vars=c('train', 'test'))
+  return(ggplot(df, aes(train_size, value, color=variable)) +
+    geom_line() +
+    geom_point() +
+    ggtitle(title) +
+    # scale_y_continuous(labels=function(x) format(x, digits=2), breaks=seq(signif(min(df$value), 2), signif(max(df$value), 2), length.out=8)) +
+    labs(x='Train size (ratio of original data)', y=data_type))
+}
+
+evaluate_model_range('Gross~.', df_numeric, 'Gross')
+
+split_data <- function(df, train_ratio=0.8) {
+  train_indicies<- sample(1:nrow(df), floor(train_ratio * nrow(df)))
+  return(list(train=df[train_indicies,], test=df[-train_indicies,]))
+}
+
+evaluate_model <- function(formula, df, train_ratio=0.8, y_label='Gross', trials=50) {
+  result_train <- vector()
+  result_test <- vector()
+
+  for (i in 1:trials) {
+    df_sample <- split_data(df, train_ratio)
+    model <- lm(formula, df_sample$train)
+    result_train <- c(result_train, sqrt(mean(model$residuals^2)))
+    test_residuals <- df_sample$test[, y_label] - predict(model, df_sample$test)
+    result_test <- c(result_test, sqrt(mean(test_residuals^2)))
+  }
+  return(list(
+            train=mean(result_train),
+            test=mean(result_test),
+            train_sd=sd(result_train),
+            test_sd=sd(result_test)
+         ))
+}
+
+evaluate_model('Gross~.', df_numeric)
+
+evaluate_model_range <- function(formula, df, y_label='Gross') {
+  rmse <- data.frame()
+  for (i in seq(0.05, 0.95, 0.05)) {
+    rmse <- rbind(rmse, c(evaluate_model(formula, df, i, y_label), train_size=i))
+  }
+  return(list(rmse=rmse, plot=plot_sub_data(rmse, 'RMSE vs. Training size', 'RMSE')))
+}
+
+evaluate_model_change <- function(formula1, df1, formula2, df2) {
+  r1 <- evaluate_model(formula1, df1, trials=1000)
+  r2 <- evaluate_model(formula2, df2, trials=1000)
+  return(list(
+    # r1=r1,
+    # r2=r2,
+    # train_diff=r2$train - r1$train,
+    # test_diff=r2$test - r1$test,
+    train_upper_diff=(r2$train + r2$train_sd) - (r1$train + r1$train_sd),
+    test_upper_diff=(r2$test + r2$test_sd) - (r1$test + r1$test_sd)
+  ))
+}
+
+feature_selection <- function(df) {
+  # Feature selection
+  # define the control using a random forest selection function
+  control <- rfeControl(functions=rfFuncs, method="cv", number=10)
+  # run the RFE algorithm
+  results <- rfe(subset(df_numeric, select=-Gross), df_numeric[, 'Gross'], sizes=ncol(df_numeric)-1, rfeControl=control)
+  # summarize the results
+  print(results)
+  # list the chosen features
+  predictors(results)
+  # plot the results
+  plot(results, type=c("g", "o"))
+  return(results)
+}
+
+# d=data.frame(x=1:1000, y=1001:2000)
+# a=evaluate_model_range('y~x', d, 'y')
+```
+
 # Tasks
 
 Each of the following tasks is worth 20 points. Remember to build each model as specified, evaluate it using the strategy outlined above, and plot the training and test errors by training set size (%).
@@ -183,69 +297,164 @@ Each of the following tasks is worth 20 points. Remember to build each model as 
 Use linear regression to predict `Gross` based on all available _numeric_ variables.
 
 ```{r}
-# ensure the results are repeatable
-set.seed(7)
-# load the library
-library(mlbench)
-library(caret)
-library(randomForest)
-# load the data
-# define the control using a random forest selection function
-control <- rfeControl(functions=rfFuncs, method="cv", number=10)
-# run the RFE algorithm
-df_complete <- df_numeric[complete.cases(df_numeric),]
-results <- rfe(subset(df_complete, select=-Gross), df_complete[, 'Gross'], sizes=c(1:8), rfeControl=control)
-# summarize the results
-print(results)
-# list the chosen features
-predictors(results)
-# plot the results
-plot(results, type=c("g", "o"))
-
-```
-
-```{r}
 # TODO: Build & evaluate model 1 (numeric variables only)
-
-lmeval <- function(model) {
-  print(paste('R^2:', summary(model)$r.squared))
-  print(paste('RSS:', mean(residuals(model)^2)))
-  plot(residuals(model), main='Residuals')
-}
-
 df_numeric <- df[, sapply(df, is.numeric)]
+
+# Filter major outlier
+df_numeric <- subset(df_numeric, Gross < 2e9)
+
 print('Numeric columns:')
 names(df_numeric)
 
-library(leaps)
-
-models <- regsubsets(Gross ~ ., data=df_numeric, nbest=5)
-plot(models)
-
-model_numeric_2 <- lm(Gross ~ .^2, df_numeric)
-model_numeric_3 <- lm(Gross ~ .^3, df_numeric)
-anova(model_numeric_2, model_numeric_3)
-lmeval(model_numeric)
+result <- evaluate_model_range('Gross~.', df_numeric, 'Gross')
+print(result$plot)
 ```
 
 **Q**: List all the numeric variables you used.
 
-**A**: 
-
-Year, Runtime, imdbRating, imdbVotes, tomatoMeter, tomatoRating, 
-, tomatoReviews, tomatoFresh, tomatoRotten, tomatoUserMeter, tomatoUserRating, tomatoUserReviews, Budget, Gross, Date, DaysDiff
+**A**: "Year" "Runtime" "imdbRating" "imdbVotes" "tomatoUserReviews" "Budget" "Month"
 
 ## 2. Feature transformations
 
 Try to improve the prediction quality from **Task 1** as much as possible by adding feature transformations of the numeric variables. Explore both numeric transformations such as power transforms and non-numeric transformations of the numeric variables like binning (e.g. `is_budget_greater_than_3M`).
 
+### Setup functions
+These help to evaluate numeric and non-numeric transformations
+
 ```{r}
 # TODO: Build & evaluate model 2 (transformed numeric variables only)
+
+df_nt <- cbind(df_numeric)
+
+reg_transforms <- function(x, y) {
+  return(list(
+    linear = lm(y~x),
+    log = lm(y~log(x+1)),
+    quad = lm(y~I(x^2)),
+    cubic = lm(y~I(x^3)),
+    quartic = lm(y~I(x^4)),
+    quintic = lm(y~I(x^5)),
+    reciprocal = lm(y~1/(x+1))
+  ))
+}
+
+get_r2 <- function(fit) {
+  return(summary(fit)$r.squared)
+}
+
+get_rmse <- function(fit) {
+  return(sqrt(mean(fit$residuals^2)))
+}
+
+get_cor <- function(fit) {
+  return(as.vector(cor(fit$model[1], fit$model[2])))
+}
+
+eval_fit <- function(fit) {
+  return(data.frame(r2=get_r2(fit), rmse=get_rmse(fit), cor=get_cor(fit)))
+}
+
+best_bins <- function(x, y) {
+  fit <- lm(y ~ x)
+  result <- list(r2=summary(fit)$r.squared, bins=0)
+  for (i in 1:200) {
+    b <- ntile(x, i)
+    fit <- lm(y ~ b)
+    r2 <- summary(fit)$r.squared
+    if (r2 > result$r2) {
+      result$r2 <- r2
+      result$bins <- i
+    }
+  }
+  return(result)
+}
 ```
+
+### Visualize features
+```{r}
+for (feature in setdiff(names(df_nt), 'Gross')) {
+  print(plot(df_nt[,feature], df_nt$Gross, main=feature))
+}
+```
+
+
+### Evaluate numeric transformations
+
+```{r}
+for (feature in setdiff(names(df_numeric), 'Gross')) {
+  print(feature)
+  fits <- reg_transforms(df_numeric[, feature], df_numeric$Gross)
+  perf <- sapply(fits, eval_fit)
+  print(perf)
+}
+
+```
+
+```{r}
+for (feature in setdiff(names(df_numeric), 'Gross')) {
+  b <- best_bins(df_numeric[, feature], df_numeric$Gross)
+  if (b$bins > 0) {
+    print(cbind(b, name=feature))
+  }
+}
+```
+
+**Transform Year**
+```{r}
+df_nt <- cbind(df_numeric)
+df_nt$Year_bin <- ntile(df_numeric$Year, 5)
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+```
+
+**Transform Runtime**
+```{r}
+df_nt <- cbind(df_numeric)
+df_nt$Runtime_cubic <- df_nt$Runtime^3
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+```
+                     
+**Transform imdbRating**
+```{r}
+eval_fit(lm(Gross ~ I(imdbRating^11), df_nt))
+df_nt <- cbind(df_numeric)
+df_nt$imdbRating_power <- df_nt$imdbRating^11
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+```
+
+**Transform tomatoUserReviews**
+```{r}
+df_nt <- cbind(df_numeric)
+df_nt$tomatoUserReviews_bin <- ntile(df_numeric$tomatoUserReviews, 39)
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+```
+
+**Transform Month**
+```{r}
+df_nt <- cbind(df_numeric)
+df_nt$Month_bin <- ntile(df_numeric$tomatoUserReviews, 6)
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+```
+
+### Transform all
+```{r}
+df_nt <- cbind(df_numeric)
+df_nt$Year_bin <- ntile(df_numeric$Year, 5)
+df_nt$Runtime_cubic <- df_nt$Runtime^3
+df_nt$imdbRating_power <- df_nt$imdbRating^11
+df_nt$tomatoUserReviews_bin <- ntile(df_numeric$tomatoUserReviews, 39)
+df_nt$Month_bin <- ntile(df_numeric$tomatoUserReviews, 6)
+evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
+evaluate_model_range('Gross~.', df_nt)
+```
+
 
 **Q**: Explain which transformations you used and why you chose them.
 
 **A**: 
+
+Each feature was evaluted for a number of different numeric transforms
+
+Year: Split into 5 equally sized bins. The RMSE change was 
 
 ## 3. Non-numeric variables
 
