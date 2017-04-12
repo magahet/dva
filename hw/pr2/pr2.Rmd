@@ -51,6 +51,9 @@ library(caret)
 library(mlbench)
 library(randomForest)
 library(dplyr)
+library(qdap)
+library(splitstackshape)
+library(stringr)
 ```
 
 If you are using any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
@@ -178,6 +181,7 @@ df <- subset(df, select=-c(tomatoUserMeter, tomatoUserRating))
 
 # Remove samples with NAs
 df <- df[complete.cases(df), ]
+df_numeric <- df[, sapply(df, is.numeric)]
 ```
 
 _**Note**: Do NOT convert categorical variables (like `Genre`) into binary columns yet. You will do that later as part of a model improvement task._
@@ -233,9 +237,10 @@ evaluate_model <- function(formula, df, train_ratio=0.8, y_label='Gross', trials
 
   for (i in 1:trials) {
     df_sample <- split_data(df, train_ratio)
+    
     model <- lm(formula, df_sample$train)
     result_train <- c(result_train, sqrt(mean(model$residuals^2)))
-    test_residuals <- df_sample$test[, y_label] - predict(model, df_sample$test)
+    suppressWarnings(test_residuals <- df_sample$test[, y_label] - predict(model, df_sample$test))
     result_test <- c(result_test, sqrt(mean(test_residuals^2)))
   }
   return(list(
@@ -452,9 +457,28 @@ evaluate_model_range('Gross~.', df_nt)
 
 **A**: 
 
-Each feature was evaluted for a number of different numeric transforms
+Each feature was evaluted for a number of different numeric transforms:
 
-Year: Split into 5 equally sized bins. The RMSE change was 
+    linear = lm(y~x),
+    log = lm(y~log(x+1)),
+    quad = lm(y~I(x^2)),
+    cubic = lm(y~I(x^3)),
+    quartic = lm(y~I(x^4)),
+    quintic = lm(y~I(x^5)),
+    reciprocal = lm(y~1/(x+1))
+    
+A model was built with each transformation and the resulting R^2, RMSE, and correlation coefficient was inspected.
+
+Binning was also evaluated for each feature by splitting the data points into equal sized bins. Bin counts between 1 and 200 were tested and the bin count that resulted in the highest r^2 model was chosen.
+
+For each feature, the model fit metrics were inspected before and after applying each of these transformations. Based on the results, the following feature transformations were done:
+
+Year: Split into 5 equally sized bins.
+Runtime: Tranformed into Runtime^3
+imdbRating: Tranformed into imdbRating^11 (this one was strange, but was included because it did result in a significant metric improvement)
+tomatoUserReviews: Split into 39 equally sized bins. This transformation made intuitive sense given the highly irregular distribution.
+Month: Split into 6 equally sized bins.
+
 
 ## 3. Non-numeric variables
 
@@ -462,6 +486,71 @@ Write code that converts genre, actors, directors, and other categorical variabl
 
 ```{r}
 # TODO: Build & evaluate model 3 (converted non-numeric variables only)
+df_cat <- df[, sapply(df, function(x) !is.numeric(x))]
+df_cat$Gross <- df$Gross
+df_cat <- subset(df_cat, select=-c(DVD, Title, tomatoConsensus, Plot))
+
+
+factor_to_features <- function(df, feature, top=10) {
+  df_factor <- subset(df, select=feature)
+  df_features <- model.matrix(~., df_factor)
+  sums <- colSums(df_features)
+  top_features = names(sort(sums, decreasing = TRUE)[1:top])
+  df_features <- subset(df_features, select=top_features)
+  df <- cbind(df, df_features)
+  df[c(feature, '(Intercept)')] = NULL
+  return(df)
+}
+
+string_to_features <- function(df, feature, top=10) {
+  df_sub <- subset(df, select=feature)
+  df_sub <- cSplit_e(df_sub, feature, sep=',', mode='binary', type='character', fill=0, drop=TRUE)
+  sums <- colSums(df_sub)
+  top_features = names(sort(sums, decreasing = TRUE)[1:top])
+  df <- cbind(df, subset(df_sub, select=top_features))
+  df[c(feature, 'na')] = NULL
+  return(df)
+}
+
+# Rated
+df_cat <- factor_to_features(df_cat, 'Rated')
+
+# Production
+df_cat <- factor_to_features(df_cat, 'Production')
+
+
+# Genre
+for (feature in c('Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country')) {
+  df_cat = string_to_features(df_cat, feature)
+}
+df_cat[c('Writer', 'na', 'Writer_N/A')] = NULL
+
+# Awards
+parse_awards <- function(msg, patterns) {
+  if (is.na(msg)) {
+    return(NA)
+  }
+  msg = tolower(msg)
+  value = 0
+  for (pattern in patterns) {
+    m = str_match(msg, pattern)[1, 2]
+    if (!is.na(m)) {
+      value = value + as.integer(m)
+    }
+  }
+  return(value)
+}
+
+awards_patterns = c('won (\\d+)', "(\\d+) win")
+nomination_patterns = c('nominated for (\\d+)', "(\\d+) nomination")
+df_cat$Wins = sapply(df_cat$Awards, parse_awards, pattern=awards_patterns)
+df_cat$Nominations = sapply(df_cat$Awards, parse_awards, pattern=nomination_patterns)
+df_cat['Awards'] = NULL
+```
+
+```{r}
+r <- evaluate_model_range('Gross~.', df_cat)
+print(r$plot)
 ```
 
 **Q**: Explain which categorical variables you used, and how you encoded them into features.
