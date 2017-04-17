@@ -54,6 +54,8 @@ library(dplyr)
 library(qdap)
 library(splitstackshape)
 library(stringr)
+library(leaps)
+library(MASS)
 ```
 
 If you are using any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
@@ -163,6 +165,9 @@ df$Metascore <- as.numeric(df$Metascore)
 # Remove featues with clearly no correlation with Gross
 df <- subset(df, select=-c(Date, Released, Poster, imdbID, Type, tomatoImage, tomatoURL, BoxOffice, Website, Response, DaysDiff))
 
+# Filter major outlier
+df <- subset(df, Gross < 2e9)
+
 # Remove features with high pairwise correlation values with remaining features
 # Remove the feature with more NAs
 # ggpairs(df[,c("tomatoMeter", "tomatoRating", "tomatoReviews", "tomatoFresh", "tomatoRotten", "tomatoUserMeter", "tomatoUserRating", "tomatoUserReviews", "imdbRating", "imdbVotes")])
@@ -253,10 +258,10 @@ evaluate_model <- function(formula, df, train_ratio=0.8, y_label='Gross', trials
 
 evaluate_model('Gross~.', df_numeric)
 
-evaluate_model_range <- function(formula, df, y_label='Gross') {
+evaluate_model_range <- function(formula, df, y_label='Gross', trials=50) {
   rmse <- data.frame()
   for (i in seq(0.05, 0.95, 0.05)) {
-    rmse <- rbind(rmse, c(evaluate_model(formula, df, i, y_label), train_size=i))
+    rmse <- rbind(rmse, c(evaluate_model(formula, df, i, y_label, trials), train_size=i))
   }
   return(list(rmse=rmse, plot=plot_sub_data(rmse, 'RMSE vs. Training size', 'RMSE')))
 }
@@ -304,9 +309,6 @@ Use linear regression to predict `Gross` based on all available _numeric_ variab
 ```{r}
 # TODO: Build & evaluate model 1 (numeric variables only)
 df_numeric <- df[, sapply(df, is.numeric)]
-
-# Filter major outlier
-df_numeric <- subset(df_numeric, Gross < 2e9)
 
 print('Numeric columns:')
 names(df_numeric)
@@ -512,14 +514,19 @@ string_to_features <- function(df, feature, top=10) {
   return(df)
 }
 
-# Rated
-df_cat <- factor_to_features(df_cat, 'Rated')
+clean_writer_strings <- function(string_) {
+  return(str_replace_all(string_, ' *\\([^\\)]*\\)', ''))
+}
 
-# Production
-df_cat <- factor_to_features(df_cat, 'Production')
+# Clean 'Writer'
+df_cat$Writer <- sapply(df_cat$Writer, clean_writer_strings)
 
+# 'Rated', 'Production'
+for (feature in c('Rated', 'Production')) {
+  df_cat <- factor_to_features(df_cat, feature)
+}
 
-# Genre
+# 'Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country'
 for (feature in c('Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country')) {
   df_cat = string_to_features(df_cat, feature)
 }
@@ -557,12 +564,37 @@ print(r$plot)
 
 **A**: 
 
+I used the following features:
+
+  'Rated', 'Production' 'Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country' 'Awards'
+  
+Rated and Production were converted by taking the set of unique values and making each a seperate binary feature. These features were then reduced to the top ten most common.
+
+The remaining features, besides Awards, were converted by parsing the string as comma seperated values and creating binary features from each of the unique extracted values. As before, only the top ten most common derived features were retained.
+
+The Awards feature extraction uses regex parsing to pull out the number of wins and nominations. Wins and Nominations features replace Awards.
+
+
 ## 4. Numeric and categorical variables
 
 Try to improve the prediction quality as much as possible by using both numeric and non-numeric variables from **Tasks 2 & 3**.
 
 ```{r}
 # TODO: Build & evaluate model 4 (numeric & converted non-numeric variables)
+df_all <- cbind(df_nt, subset(df_cat, select=-Gross))
+
+r <- evaluate_model_range('Gross~.', df_all)
+print(r$plot)
+
+# evaluate_model_change('Gross~.', df_nt, 'Gross~.', df_all)
+
+# Remove high correlation features
+cor_matrix <- cor(subset(df_all, select=-Gross), use='pairwise.complete.obs')
+high_cor <- findCorrelation(cor_matrix, cutoff=0.75)
+print('High cor features:')
+print(names(df_all[, high_cor]))
+df_filtered <- df_all[, -c(high_cor)]
+# df <- subset(df, select=-c(tomatoUserMeter, tomatoUserRating))
 ```
 
 ## 5. Additional features
@@ -571,7 +603,142 @@ Now try creating additional features such as interactions (e.g. `is_genre_comedy
 
 ```{r}
 # TODO: Build & evaluate model 5 (numeric, non-numeric and additional features)
+evaluate_model_range('Gross~.^2', df_filtered, trials=10)
+fit <- lm(Gross~.^2, df_filtered)
+summary(fit)$r.squared
+
+filter_columns <- function(df, column_names) {
+  if (length(column_names) == 0) {
+    return(df)
+  } else {
+    return(df[, -which(names(df) %in% column_names)])
+  }
+}
+
+run_rfe <- function(x, y) {
+  # subsets <- c(1:5, 10, 15, 20, 25)
+       
+  ctrl <- rfeControl(functions=lmFuncs)
+  # ctrl <- rfeControl(functions = lmFuncs,
+  #                    method = "repeatedcv",
+  #                    repeats = 5,
+  #                    verbose = FALSE)
+  
+  lmProfile <- rfe(x, y,
+                   # sizes = subsets,
+                   rfeControl = ctrl)
+  return(lmProfile)
+}
+
+lmp_nt <- run_rfe(filter_columns(df_nt, c(n, 'Gross')), df_nt$Gross)
+lmp_nt
+print(lmp_nt)
+plot(lmp_nt)
+head(lmp_nt$resample)
+pred_nt <- predictors(lmp_nt)
+pred_nt
+# x <- subset(df_cat_filtered, select=-Gross)
+# x <- preProcess(x)
+lmp_cat <- run_rfe(x, df_cat_filtered$Gross)
+
+
+filter_high_cor <- function(df) {
+  cor_matrix <- cor(subset(df, select=-Gross), use='pairwise.complete.obs')
+  high_cor <- findCorrelation(cor_matrix, cutoff=0.75)
+  return(df[, -c(high_cor)])
+}
+
+filter_near_zero_var <- function(df) {
+  near_zero_var_columns <- names(df)[nearZeroVar(df)]
+  return(filter_columns(df, near_zero_var_columns))
+}
+
+df_cat_filtered <- filter_columns(df_cat, names(df_cat)[nearZeroVar(df_cat)])
+df_cat_filtered <- filter_high_cor(df_cat_filtered)
+x <- subset(df_cat_filtered, select=-Gross) 
+
+fit <- lm(Gross~., df_cat_filtered)
+influence(fit)
+
+leapSet <- 
+leapSet <- leaps(x, df_cat_filtered$Gross, nbest=1, method='adjr2')
+
+library(MASS)
+step <- stepAIC(fit, direction="both")
+step$anova # display results
+
+subsets <- regsubsets(Gross~., df_cat_filtered)
+
+plot(subsets)
+summary(subsets)
+
+fit <- lm(Gross~., df_cat)
+s <- step(fit)
+
+lmp_cat <- run_rfe(x, y)
+
+lmp_cat <- run_rfe(filter_columns(df_cat, c(n, 'Gross')), df_cat$Gross)
+pricat(lmp_cat)
+pred_cat <- predictors(lmp_cat)
+
+head(lmProfile$resample)
+plot(lmProfile)
+
+evaluate_model_range('Gross ~ `RatedPG-13` + RatedPG + `ProductionWarner Bros. Pictures` + 
+    `ProductionUniversal Pictures` + Genre_Drama + Genre_Action + 
+    Genre_Adventure + Genre_Thriller + Genre_Fantasy + Language_French + 
+    Country_USA + Country_Canada + Country_France + Nominations', df_cat_filtered)
+
 ```
+
+```{r}
+df_all <- cbind(subset(df_cat_filtered, select=-Gross), df_nt)
+df_all_filtered <- filter_near_zero_var(df_all)
+df_all_filtered <- filter_high_cor(df_all_filtered)
+fit <- lm(Gross~., df_all_filtered)
+
+step <- stepAIC(fit, direction="both")
+step$anova # display results
+
+evaluate_model_range('Gross ~ RatedR + `RatedPG-13` + `ProductionWarner Bros. Pictures` + 
+    Genre_Drama + Genre_Action + Genre_Adventure + Genre_Horror + 
+    Genre_Mystery + Country_UK + Country_Germany + imdbVotes + 
+    tomatoUserReviews + Budget + Year_bin + tomatoUserReviews_bin', df_all_filtered)
+
+df_final <- subset(df_all_filtered, select=c(Gross, RatedR, `RatedPG-13`, `ProductionWarner Bros. Pictures`, Genre_Drama, Genre_Action, Genre_Adventure, Genre_Horror, Genre_Mystery, Country_UK, Country_Germany, imdbVotes, tomatoUserReviews, Budget, Year_bin, tomatoUserReviews_bin))
+```
+
+```{r}
+fit <- lm(Gross~.^2, df_final)
+step <- stepAIC(fit, direction="both")
+step$anova # display results
+evaluate_model_range('Gross ~ RatedR + `RatedPG-13` + `ProductionWarner Bros. Pictures` + 
+    Genre_Drama + Genre_Action + Genre_Adventure + Genre_Horror + 
+    Genre_Mystery + Country_UK + Country_Germany + imdbVotes + 
+    tomatoUserReviews + Budget + Year_bin + tomatoUserReviews_bin + 
+    RatedR:Genre_Drama + RatedR:Genre_Action + RatedR:Genre_Adventure + 
+    RatedR:Genre_Horror + RatedR:imdbVotes + RatedR:Budget + 
+    RatedR:Year_bin + `RatedPG-13`:`ProductionWarner Bros. Pictures` + 
+    `RatedPG-13`:Genre_Drama + `RatedPG-13`:Genre_Action + `RatedPG-13`:Genre_Horror + 
+    `RatedPG-13`:imdbVotes + `RatedPG-13`:tomatoUserReviews + 
+    `RatedPG-13`:Budget + `RatedPG-13`:Year_bin + `RatedPG-13`:tomatoUserReviews_bin + 
+    `ProductionWarner Bros. Pictures`:Genre_Drama + `ProductionWarner Bros. Pictures`:Genre_Action + 
+    `ProductionWarner Bros. Pictures`:Genre_Mystery + `ProductionWarner Bros. Pictures`:Country_UK + 
+    `ProductionWarner Bros. Pictures`:Country_Germany + `ProductionWarner Bros. Pictures`:tomatoUserReviews + 
+    `ProductionWarner Bros. Pictures`:Budget + `ProductionWarner Bros. Pictures`:Year_bin + 
+    `ProductionWarner Bros. Pictures`:tomatoUserReviews_bin + 
+    Genre_Drama:Genre_Adventure + Genre_Drama:Budget + Genre_Drama:Year_bin + 
+    Genre_Action:Genre_Adventure + Genre_Action:Country_UK + 
+    Genre_Action:imdbVotes + Genre_Action:tomatoUserReviews + 
+    Genre_Action:Budget + Genre_Action:Year_bin + Genre_Action:tomatoUserReviews_bin + 
+    Genre_Adventure:tomatoUserReviews + Genre_Adventure:Budget + 
+    Genre_Horror:Budget + Genre_Mystery:imdbVotes + Country_UK:imdbVotes + 
+    Country_UK:tomatoUserReviews_bin + Country_Germany:tomatoUserReviews + 
+    imdbVotes:Year_bin + imdbVotes:tomatoUserReviews_bin + tomatoUserReviews:Year_bin + 
+    tomatoUserReviews:tomatoUserReviews_bin + Budget:Year_bin + 
+    Budget:tomatoUserReviews_bin', df_final)
+```
+
 
 **Q**: Explain what new features you designed and why you chose them.
 
