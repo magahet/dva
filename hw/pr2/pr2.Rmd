@@ -586,12 +586,12 @@ filter_columns <- function(df, column_names) {
   }
 }
 
-filter_high_cor <- function(df) {
+filter_high_cor <- function(df, cutoff=0.75) {
   if ('Gross' %in% colnames(df)) {
     x <- subset(df, select=-Gross)
   }
   cor_matrix <- cor(x, use='pairwise.complete.obs')
-  high_cor <- findCorrelation(cor_matrix, cutoff=0.75, names=TRUE)
+  high_cor <- findCorrelation(cor_matrix, cutoff=cutoff, names=TRUE)
   return(filter_columns(df, high_cor))
 }
 
@@ -600,45 +600,44 @@ filter_near_zero_var <- function(df) {
   return(filter_columns(df, near_zero_var_columns))
 }
 
-run_rfe <- function(df) {
-  ctrl <- rfeControl(functions = lmFuncs,
+build_formula <- function(features) {
+  return(paste('Gross ~', paste(features, collapse='+')))
+}
+
+run_sbf <- function(formula, df) {
+  ctrl <- sbfControl(functions = lmSBF,
                    method = "repeatedcv",
                    repeats = 5,
-                   verbose = FALSE)
-  # x <- df
-  x <- subset(df, select=-Gross)
-  # x <- x[, -findCorrelation(cor(x), .8)]
-  # x <- as.data.frame(x)
-  y <- as.vector(df$Gross)
-  # return(rfe(x, y,
-  #            sizes = subsets,
-  #            number = 10,
-  #            rfeControl = ctrl))
-  # return(rfe(x, y,
-  #                # sizes = c(2:4),
-  #                rfeControl = rfeControl(functions = lmFuncs)))
-  subsets <- seq(ncol(x))
-  # x <- scale(df[,-nearZeroVar(x)])
-  return(rfe(x, y,
-                 # sizes = c(2:4),
-                 rfeControl = ctrl))
+                   verbose = TRUE, saveDetails=T)
+  return(sbf(form=formula,
+             data=df,
+             sbfControl = ctrl))
 }
-lmp <- run_rfe(df_nt)
+sums <- colSums(df_cat)
+top_features = names(sums[sums > 100])
+a <- subset(df_cat, select=top_features)
+lmp <- run_sbf(a)
 
-trellis.par.set(caretTheme())
-plot(lmp, type = c("g", "o"))
+# Filter features
+lmp <- run_sbf(Gross~., df_all)
+eval_fit(lmp$fit)
+
+df_all_filtered <- lmp$fit$model
+colnames(df_all_filtered)[1] <- 'Gross'
+
+evaluate_model_change('Gross~.', df_cat, build_formula(lmp$optVariables), df_cat)
+
+evaluate_model_change('Gross~.', df_all, 'Gross~.', df_all_filtered)
+
 
 # Setup parallel processing
 library(doMC)
-registerDoMC(cores = 3)
+registerDoMC(cores = 4)
 
-
-# test
-a <- filter_near_zero_var(df_nt)
-a <- filter_high_cor(a)
-lmp <- run_rfe(a)
-
-lmp <- run_rfe(df_cat)
+lmp <- run_sbf(df_all)
+eval_fit(lmp$fit)
+lmp$optVariables
+evaluate_model_change('Gross~.', df_all, build_formula(lmp$optVariables), df_all)
 
 # Perform feature selection on all features
 df_all_filtered <- filter_near_zero_var(df_all)
@@ -679,9 +678,6 @@ filter_non_important <- function(fit, top=20) {
   return(rownames(imp)[order(imp$Overall, decreasing=TRUE)[1:top]])
 }
 
-build_formula <- function(features) {
-  return(paste('Gross ~', paste(a, collapse='+')))
-}
 
 a <- filter_non_important(fit3, 50)
 fit <- lm(build_formula(a), df_all_filtered)
