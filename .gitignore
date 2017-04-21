@@ -1,5 +1,8 @@
 *.swp
 
+latex/
+figure-latex/
+
 # History files
 .Rhistory
 .Rapp.history

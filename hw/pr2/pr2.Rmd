@@ -6,6 +6,11 @@ output:
   html_document: default
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+options(warn=-1) 
+```
+
 # Data
 
 We will use the same dataset as Project 1: [`movies_merged`](https://s3.amazonaws.com/content.udacity-data.com/courses/gt-cs6242/project/movies_merged).
@@ -42,30 +47,39 @@ colnames(df)
 
 Load any R packages that you will need to use. You can come back to this chunk, edit it and re-run to load any additional packages later.
 
-```{r echo=FALSE}
-library(ggplot2)
-library(GGally)
-library(reshape2)
-library(caret)
-library(plyr)
-library(splitstackshape)
-library(stringr)
-library(MASS)
+```{r}
+suppressMessages(library(ggplot2))
+suppressMessages(library(GGally))
+suppressMessages(library(reshape2))
+suppressMessages(library(caret))
+suppressMessages(library(plyr))
+suppressMessages(library(dplyr))
+suppressMessages(library(splitstackshape))
+suppressMessages(library(stringr))
+suppressMessages(library(MASS))
+suppressMessages(library(doParallel))
+suppressMessages(library(rbenchmark))
+```
 
-library(mlbench)
-library(Hmisc)
-library(randomForest)
+```{r}
+# Setup parallel processing
+cl <- makeCluster(detectCores()-2)
+registerDoParallel(cl)  
 ```
 
 If you are using any non-standard packages (ones that have not been discussed in class or explicitly allowed for this project), please mention them below. Include any special instructions if they cannot be installed using the regular `install.packages('<pkg name>')` command.
 
 **Non-standard packages used**:
 
-caret
-dplyr
-splitstackshape
-stringr
-MASS
+    reshape2
+    caret
+    MASS
+    plyr
+    dplyr
+    splitstackshape
+    stringr
+    doParallel
+    rbenchmark
 
 # Data Preprocessing
 
@@ -170,24 +184,28 @@ df$Metascore <- as.numeric(df$Metascore)
 # Remove featues with clearly no correlation with Gross
 df <- subset(df, select=-c(Date, Released, Poster, imdbID, Type, tomatoImage, tomatoURL, BoxOffice, Website, Response, DaysDiff))
 
-# Filter major outlier
+# Filter major outliers
 df <- subset(df, Gross < 2e9)
+df <- subset(df, Gross > 1000)
+
+# Clean column names
+colnames(df) <- make.names(colnames(df), unique=T)
 
 # Remove features with more than 10% NAs
 pMiss <- function(x){round(sum(is.na(x))/length(x)*100)}
 mc <- apply(df, 2, pMiss)
+mc[mc>0]
 columns_to_keep <- names(mc[mc < 10])
 df <- subset(df, select=columns_to_keep)
-df_numeric <- df[, sapply(df, is.numeric)]
 
 # Remove high correlation features
+df_numeric <- df[, sapply(df, is.numeric)]
 cor_matrix <- cor(subset(df_numeric, select=-Gross), use='pairwise.complete.obs')
-high_cor <- colnames(cor_matrix[, findCorrelation(cor_matrix, cutoff=0.75)])
+colnames(cor_matrix[, findCorrelation(cor_matrix, cutoff=0.75)])
 df <- subset(df, select=-c(tomatoUserMeter, tomatoUserRating))
 
 # Remove samples with NAs
 df <- df[complete.cases(df), ]
-df_numeric <- df[, sapply(df, is.numeric)]
 ```
 
 _**Note**: Do NOT convert categorical variables (like `Genre`) into binary columns yet. You will do that later as part of a model improvement task._
@@ -198,11 +216,8 @@ Report the dimensions of the preprocessed dataset you will be using for modeling
 
 ```{r}
 # TODO: Print the dimensions of the final preprocessed dataset and column names
-print('DF dims:')
 dim(df)
-
-print('DF column names:')
-names(df)
+colnames(df)
 ```
 
 # Evaluation Strategy
@@ -227,11 +242,8 @@ plot_sub_data <- function(df, title, data_type) {
     geom_line() +
     geom_point() +
     ggtitle(title) +
-    # scale_y_continuous(labels=function(x) format(x, digits=2), breaks=seq(signif(min(df$value), 2), signif(max(df$value), 2), length.out=8)) +
     labs(x='Train size (ratio of original data)', y=data_type))
 }
-
-evaluate_model_range('Gross~.', df_numeric, 'Gross')
 
 # Split data into train and test sets
 split_data <- function(df, train_ratio=0.8) {
@@ -250,47 +262,53 @@ test_model <-function (formula, df, train_ratio=0.8, y_label='Gross') {
 }
 
 # Caculate the average RMSE over a number of trials for a given formula, data, and train/test split
-evaluate_model <- function(formula, df, train_ratio=0.8, y_label='Gross', trials=50) {
-  result_train <- vector()
-  result_test <- vector()
-
-  for (i in 1:trials) {
-    result <- test_model(formula, df, train_ratio=train_ratio, y_label=y_label)
-    result_train <- c(result_train, result$train)
-    result_test <- c(result_test, result$test)
+evaluate_model <- function(formula, df, train_ratio=0.95, y_label='Gross', trials=10) {
+  result <- foreach(i=1:trials, .combine=rbind, .export=c('test_model', 'split_data')) %dopar% {
+    as.data.frame(test_model(formula, df, train_ratio=train_ratio, y_label=y_label))
   }
   return(list(
-            train=mean(result_train),
-            test=mean(result_test)
+            train=mean(result$train),
+            test=mean(result$test)
          ))
 }
 
-# evaluate_model_range('Gross~.', df_numeric)
-
 # Evaluate performance of a model over a range of train/test set sizes
-evaluate_model_range <- function(formula, df, y_label='Gross', trials=50) {
+evaluate_model_range <- function(formula, df, y_label='Gross', trials=50, max_time=20) {
+  sample_sizes <- seq(0.05, 0.95, 0.05)
+  duration <- system.time(evaluate_model(formula, df, trials=detectCores()))[3]
+  trials_till_max_time <- ceiling(max_time * 4/ (duration * length(sample_sizes)))
+  trials <- min(trials, trials_till_max_time)
+  print(paste(trials, 'trials'))
   rmse <- data.frame()
-  for (i in seq(0.05, 0.95, 0.05)) {
+  for (i in sample_sizes) {
     rmse <- rbind(rmse, c(evaluate_model(formula, df, i, y_label, trials), train_size=i))
   }
   return(list(rmse=rmse, plot=plot_sub_data(rmse, 'RMSE vs. Training size', 'RMSE')))
 }
 
 # Run a t-test on the set of RMSEs observed over a number of trials for two different models
-evaluate_model_change <- function(formula1, df1, formula2, df2, train_ratio=0.95, y_label='Gross', trials=500) {
-  m1 <- data.frame()
-  m2 <- data.frame()
-  for (i in 1:trials) {
-    m1 <- rbind(m1, test_model(formula1, df1, train_ratio=train_ratio, y_label=y_label))
-    m2 <- rbind(m2, test_model(formula2, df2, train_ratio=train_ratio, y_label=y_label))
+evaluate_model_change <- function(formula1, df1, formula2, df2, train_ratio=0.95, y_label='Gross', trials=100, max_time=20) {
+  duration <- system.time(evaluate_model(formula1, df1, trials=detectCores()))[3]
+  duration <- duration + system.time(evaluate_model(formula2, df2, trials=detectCores()))[3]
+  trials_till_max_time <- ceiling(max_time * 4/ duration)
+  trials <- min(trials, trials_till_max_time)
+  print(paste(trials, 'trials'))
+  m1 <- foreach(i=1:trials, .combine=rbind, .export=c('test_model', 'split_data')) %dopar% {
+    as.data.frame(test_model(formula1, df1, train_ratio=train_ratio, y_label=y_label))
+  }
+  m2 <- foreach(i=1:trials, .combine=rbind, .export=c('test_model', 'split_data')) %dopar% {
+    as.data.frame(test_model(formula2, df2, train_ratio=train_ratio, y_label=y_label))
   }
   return(list(train=t.test(m1$train, m2$train, alternative='greater'),
               test=t.test(m1$test, m2$test, alternative='greater')))
 }
+```
 
-# r <- evaluate_model_change('Gross~Budget', df_nt, 'Gross~.', df_nt)
-# r$train
-# r$test
+```{r}
+# Run benchmark on random data
+df_random <- data.frame(x=runif(nrow(df)), Gross=df$Gross)
+evaluate_model_range(Gross~., df_random)
+evaluate_model_change(Gross~., df_random, Gross~.^2, df_random, trials=500)
 ```
 
 # Tasks
@@ -304,18 +322,23 @@ Use linear regression to predict `Gross` based on all available _numeric_ variab
 ```{r}
 # TODO: Build & evaluate model 1 (numeric variables only)
 df_numeric <- df[, sapply(df, is.numeric)]
-
-print('Numeric columns:')
 names(df_numeric)
+```
 
+```{r}
 evaluate_model_range('Gross~.', df_numeric, 'Gross')
 ```
 
 **Q**: List all the numeric variables you used.
 
-**A**: "Year" "Runtime" "imdbRating" "imdbVotes" "tomatoUserReviews" "Budget" "Month"
+**A**:
 
-The resulting model produced an RMSE of ~9.5e8 for both training and test samples.
+[1] "Year"              "Runtime"           "Metascore"         "imdbRating"        "imdbVotes"        
+ [6] "tomatoMeter"       "tomatoRating"      "tomatoReviews"     "tomatoFresh"       "tomatoRotten"     
+[11] "tomatoUserReviews" "Budget"            "Month"          
+
+
+The resulting model produced an RMSE of ~1e8 for both training and test samples.
 
 
 ## 2. Feature transformations
@@ -397,34 +420,33 @@ for (feature in setdiff(names(df_numeric), 'Gross')) {
 ```
 
 ```{r}
+# Numeric transformations
+df_nt$Runtime_cubic <- df_nt$Runtime^3
+df_nt$imdbRating_power <- df_nt$imdbRating^11
+df_nt$tomatoReviews_cubic <- df_nt$tomatoReviews^3
+df_nt$tomatoFresh_quad <- df_nt$tomatoFresh^2
+df_nt$tomatoRotten_quant <- df_nt$tomatoRotten^4
+df_nt$tomatoMonth_log <- log(df_nt$Month)
+```
+
+
+### Evaluate binning of numeric features
+```{r}
+# Binning transformations
+
 for (feature in setdiff(names(df_numeric), 'Gross')) {
   b <- best_bins(df_numeric[, feature], df_numeric$Gross)
   if (b$bins > 0) {
     print(cbind(b, name=feature))
+    df_nt[, paste(feature, '_bin', sep='')] <- ntile(df_numeric[, feature], b$bins)
   }
 }
+
 ```
 
-
-### Transform numeric features
 ```{r}
-# Numeric transformations
-df_nt$Runtime_cubic <- df_nt$Runtime^3
-df_nt$imdbRating_power <- df_nt$imdbRating^11
-
-# Binning transformations
-df_nt <- cbind(df_numeric)
-df_nt$Year_bin <- ntile(df_numeric$Year, 20)
-df_nt$Runtime_bin <- ntile(df_numeric$Runtime, 8)
-df_nt$imdbRating_bin <- ntile(df_numeric$imdbRating, 29)
-df_nt$imdbVotes_bin <- ntile(df_numeric$imdbVotes, 8)
-df_nt$tomatoUserReviews_bin <- ntile(df_numeric$tomatoUserReviews, 39)
-df_nt$Budget_bin <- ntile(df_numeric$Budget, 22)
-df_nt$Month_bin <- ntile(df_numeric$tomatoUserReviews, 2)
-
 evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt)
 evaluate_model_range('Gross~.', df_nt)
-evaluate_model_change('Gross~.', df_numeric, 'Gross~.', df_nt, train_ratio=0.1)
 ```
 
 
@@ -442,20 +464,32 @@ Each feature was evaluted for a number of different numeric transforms:
     quintic = lm(y~I(x^5)),
     reciprocal = lm(y~1/(x+1))
     
-A model was built with each transformation and the resulting R^2, RMSE, and correlation coefficient was inspected.
+A model was built with each transformation and the resulting R^2, RMSE, and correlation coefficient was inspected. For each feature, the model fit metrics were inspected before and after applying each of these transformations. Based on the results, the following numeric transformation features were added:
 
-Binning was also evaluated for each feature by splitting the data points into equal sized bins. Bin counts between 1 and 200 were tested and the bin count that resulted in the highest r^2 model was chosen.
+    Runtime^3
+    imdbRating^11
+    tomatoReviews^3
+    tomatoFresh^2
+    tomatoRotten^4
+    log(Month)
 
-For each feature, the model fit metrics were inspected before and after applying each of these transformations. Based on the results, the following feature transformations were done:
+Binning was also evaluated for each feature by splitting the data points into equal sized bins. Bin counts between 1 and 200 were tested and the bin count that resulted in the highest r^2 model was chosen. The following bin features where added:
 
-Year: Split into 5 equally sized bins.
-Runtime: Tranformed into Runtime^3
-imdbRating: Tranformed into imdbRating^11 (this one was strange, but was included because it did result in a significant metric improvement)
-tomatoUserReviews: Split into 39 equally sized bins. This transformation made intuitive sense given the highly irregular distribution.
-Month: Split into 6 equally sized bins.
+    bins 15         "Year"
+    bins 8         "Runtime"
+    bins 17         "Metascore"
+    bins 27         "imdbRating"
+    bins 8         "imdbVotes"
+    bins 86        "tomatoMeter"
+    bins 23         "tomatoRating"
+    bins 35        "tomatoReviews"
+    bins 17        "tomatoFresh"
+    bins 18         "tomatoRotten"
+    bins 27        "tomatoUserReviews"
+    bins 29        "Budget"
+    bins 2          "Month"
 
-The final result of these transformations was a slight improvement of RMSE on the training set and roughly unchanged RMSE on the test set. However, a number of these transformed features contributed significantly in later phases, when combined with each other in interactions and with non-numeric featues.
-
+The final result of these transformations was an improvement of about 5% on the test RMSE on the training and test sets (~9.5e7). The t-test between the RMSE mean across trials for the numeric model verses the tranformed model shows a p-value of 0.01. This indicates the model improvement is statistically significant.
 
 ## 3. Non-numeric variables
 
@@ -471,26 +505,51 @@ df_cat$Gross <- df$Gross
 # Filter non-catagorical features
 df_cat <- subset(df_cat, select=-c(DVD, Title, tomatoConsensus, Plot))
 
+filter_columns <- function(df, column_names) {
+  if (length(column_names) > 0) {
+    filtered <- which(names(df) %in% column_names)
+    if (length(filtered) > 0) {
+      return(df[, -filtered])
+    }
+  }
+  return(df)
+}
+
 # Converts the top N unique values to binary features
-factor_to_features <- function(df, feature, top=10) {
+factor_to_features <- function(df, feature, top=10, append=TRUE) {
   df_factor <- subset(df, select=feature)
-  df_features <- model.matrix(~., df_factor)
-  sums <- colSums(df_features)
-  top_features = names(sort(sums, decreasing = TRUE)[1:top])
-  df_features <- subset(df_features, select=top_features)
-  df <- cbind(df, df_features)
-  df[c(feature, '(Intercept)')] = NULL
+  df_features <- model.matrix(~., df_factor)[,-1]
+  if (top > 0) {
+    sums <- colSums(df_features)
+    top_features = names(sort(sums, decreasing = TRUE)[1:min(top, length(sums))])
+    df_features <- subset(df_features, select=top_features)
+  }
+  if (append) {
+    df <- cbind(df, df_features)
+  } else {
+    df <- df_features
+  }
+  df <- filter_columns(df, c(feature, '(Intercept)'))
+  colnames(df) <- make.names(colnames(df), unique=T)
   return(df)
 }
 
 # Converts the top N unique values to binary features. Assumes comma seperated values in original feature.
-string_to_features <- function(df, feature, top=10) {
+string_to_features <- function(df, feature, top=10, append=TRUE) {
   df_sub <- subset(df, select=feature)
   df_sub <- cSplit_e(df_sub, feature, sep=',', mode='binary', type='character', fill=0, drop=TRUE)
-  sums <- colSums(df_sub)
-  top_features = names(sort(sums, decreasing = TRUE)[1:top])
-  df <- cbind(df, subset(df_sub, select=top_features))
-  df[c(feature, 'na')] = NULL
+  if (top > 0) {
+    sums <- colSums(df_sub)
+    top_features = names(sort(sums, decreasing = TRUE)[1:min(top, ncol(df_sub))])
+    df_sub <- subset(df_sub, select=top_features)
+  }
+  if (append) {
+    df <- cbind(df, df_sub)
+  } else {
+    df <- df_sub
+  }
+  df <- filter_columns(df, c(feature, 'na'))
+  colnames(df) <- make.names(colnames(df), unique=T)
   return(df)
 }
 
@@ -501,19 +560,23 @@ clean_writer_strings <- function(string_) {
 
 # Clean 'Writer'
 df_cat$Writer <- sapply(df_cat$Writer, clean_writer_strings)
+```
 
-# 'Rated', 'Production'
+```{r}
+# Create binary features for: 'Rated', 'Production'
 for (feature in c('Rated', 'Production')) {
   df_cat <- factor_to_features(df_cat, feature)
 }
 
-# 'Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country'
+# Create binary features for: 'Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country'
 for (feature in c('Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country')) {
   df_cat = string_to_features(df_cat, feature)
 }
+
+# Clean columns
 df_cat[c('Writer', 'na', 'Writer_N/A')] = NULL
 
-# Awards
+# Parse Awards
 parse_awards <- function(msg, patterns) {
   if (is.na(msg)) {
     return(NA)
@@ -539,6 +602,7 @@ df_cat['Awards'] = NULL
 
 ```{r}
 # Evaluate the non-numeric only model
+evaluate_model('Gross~.', df_cat)
 evaluate_model_range('Gross~.', df_cat)
 ```
 
@@ -556,7 +620,7 @@ The remaining features, besides Awards, were converted by parsing the string as 
 
 The Awards feature extraction uses regex parsing to pull out the number of wins and nominations. Wins and Nominations features replace Awards.
 
-The resulting non-numeric only model resulted in an RMSE of ~1.3e8 and ~1.4e8 for train and test samples respectively.
+The resulting non-numeric only model resulted in an RMSE of ~1.4e8 for train and test samples.
 
 
 ## 4. Numeric and categorical variables
@@ -567,25 +631,20 @@ Try to improve the prediction quality as much as possible by using both numeric 
 # TODO: Build & evaluate model 4 (numeric & converted non-numeric variables)
 
 # Combine numeric and non-numeric features
-df_all <- cbind(df_nt, subset(df_cat, select=-Gross))
-
-evaluate_model_change('Gross~.', df_nt, 'Gross~.', df_all)
-evaluate_model_change('Gross~.', df_cat, 'Gross~.', df_all)
-evaluate_model_range('Gross~.', df_all)
+df_all <- merge(df_nt, df_cat)
 ```
 
-The combined model, with numeric and non-numeric featues, performed significantly beter than either sub set of features. RMSE improved by 6e9 on the training set, and 1e9 on the test set over the beter of the two previous models.
-
-
 ```{r}
-filter_columns <- function(df, column_names) {
-  if (length(column_names) == 0) {
-    return(df)
-  } else {
-    return(df[, -which(names(df) %in% column_names)])
-  }
-}
+evaluate_model_change('Gross~.', df_nt, 'Gross~.', df_all)
+evaluate_model_change('Gross~.', df_cat, 'Gross~.', df_all)
+evaluate_model_range('Gross~.', df_all, max_time=120)
+```
 
+The combined model, with numeric and non-numeric featues, performed significantly beter than the catagory only model and was about the same as the numeric only model. The best RMSE on the test set was 9.5e7. RMSE on the training set (95%) was better on the mixed model. Since the mixed model did not improve over the numeric model, the next step is to do some feature selection. We already know that the mixed model is performing similar to a model with less features, so there should be some features that are not contributing.
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+# Filter features with high correlation with other features
 filter_high_cor <- function(df, cutoff=0.75) {
   if ('Gross' %in% colnames(df)) {
     x <- subset(df, select=-Gross)
@@ -595,6 +654,7 @@ filter_high_cor <- function(df, cutoff=0.75) {
   return(filter_columns(df, high_cor))
 }
 
+# Filter features with near zero variance
 filter_near_zero_var <- function(df) {
   near_zero_var_columns <- names(df)[nearZeroVar(df)]
   return(filter_columns(df, near_zero_var_columns))
@@ -604,6 +664,7 @@ build_formula <- function(features) {
   return(paste('Gross ~', paste(features, collapse='+')))
 }
 
+# Perform univariate feature filtering
 run_sbf <- function(formula, df) {
   ctrl <- sbfControl(functions = lmSBF,
                    method = "repeatedcv",
@@ -613,53 +674,20 @@ run_sbf <- function(formula, df) {
              data=df,
              sbfControl = ctrl))
 }
-sums <- colSums(df_cat)
-top_features = names(sums[sums > 100])
-a <- subset(df_cat, select=top_features)
-lmp <- run_sbf(a)
 
 # Filter features
-lmp <- run_sbf(Gross~., df_all)
-eval_fit(lmp$fit)
-
-df_all_filtered <- lmp$fit$model
-colnames(df_all_filtered)[1] <- 'Gross'
-
-evaluate_model_change('Gross~.', df_cat, build_formula(lmp$optVariables), df_cat)
-
-evaluate_model_change('Gross~.', df_all, 'Gross~.', df_all_filtered)
-
-
-# Setup parallel processing
-library(doMC)
-registerDoMC(cores = 4)
-
-lmp <- run_sbf(df_all)
-eval_fit(lmp$fit)
-lmp$optVariables
-evaluate_model_change('Gross~.', df_all, build_formula(lmp$optVariables), df_all)
-
-# Perform feature selection on all features
-df_all_filtered <- filter_near_zero_var(df_all)
-df_all_filtered <- filter_high_cor(df_all_filtered)
-fit <- lm(Gross~.^2, df_all_filtered)
-steps <- stepAIC(fit, direction="both")
-steps$anova
-df_all_filtered <- steps$model
-evaluate_model_change('Gross~.', df_all_filtered, 'Gross~.^2', df_all_filtered, trials=100)
-
-lmProfile <- run_rfe(df_all)
-
-# Eval feature selected model
-feature_selected_formula <- 'Gross ~ RatedR + `RatedPG-13` + `ProductionWarner Bros. Pictures` + Genre_Drama + Genre_Action + Genre_Adventure + Genre_Horror + Genre_Mystery + Country_UK + Country_Germany + imdbVotes + tomatoUserReviews + Budget + Year_bin + tomatoUserReviews_bin'
-evaluate_model_change('Gross~.', df_all, feature_selected_formula , df_all_filtered)
-evaluate_model_range(feature_selected_formula , df_all_filtered)
-
-# Create feature selected data frame
-df_all_selected <- subset(df_all_filtered, select=c(Gross, RatedR, `RatedPG-13`, `ProductionWarner Bros. Pictures`, Genre_Drama, Genre_Action, Genre_Adventure, Genre_Horror, Genre_Mystery, Country_UK, Country_Germany, imdbVotes, tomatoUserReviews, Budget, Year_bin, tomatoUserReviews_bin))
+lmp_all <- run_sbf(Gross~., df_all)
+df_filtered <- lmp_all$fit$model
+colnames(df_filtered)[1] <- 'Gross'
 ```
 
-Using stepwise model selection on the full set of features (91 features) produced a simplified model with 15 features. RMSE on the simplified model improved by 1e9 on the test set.
+```{r}
+paste('Keeping', ncol(df_filtered), 'out of', ncol(df_all), 'features')
+evaluate_model_change('Gross~.', df_all, 'Gross~.', df_filtered)
+evaluate_model_range('Gross~.', df_filtered)
+```
+
+Using univariate feature filtering on the full set of features (112 features) produced a simplified model with 78 features. RMSE on the simplified model improved slightly to 9.1e7 on the test set.
 
 ## 5. Additional features
 
@@ -668,64 +696,115 @@ Now try creating additional features such as interactions (e.g. `is_genre_comedy
 ```{r}
 # TODO: Build & evaluate model 5 (numeric, non-numeric and additional features)
 
-# Evaluate feature interactions
-fit3 <- lm(Gross~.^3, df_all_filtered)
-eval_fit(fit)
-imp <- varImp(fit)
-
-filter_non_important <- function(fit, top=20) {
-  imp <- varImp(fit)
-  return(rownames(imp)[order(imp$Overall, decreasing=TRUE)[1:top]])
+search_colnames <- function(term, df) {
+  return(colnames(df)[which(str_detect(colnames(df), term))])
 }
 
+build_formula_by_term <- function(term, df) {
+  return(paste(search_colnames(term, df_filtered), collapse='+'))
+}
+```
 
-a <- filter_non_important(fit3, 50)
-fit <- lm(build_formula(a), df_all_filtered)
-step <- stepAIC(fit3, direction="both")
+### Interactions
 
-evaluate_model_change('Gross~.', df_all_filtered, 'Gross~.', step$model)
-evaluate_model_change('Gross~.', df_all_filtered, 'Gross~.^2', df_all_filtered, trials=100)
-evaluate_model_change('Gross~.', df_all, 'Gross~.', df_all_filtered)
+***Genre interactions***
+```{r}
+formula <- paste('Gross~(', build_formula_by_term('Genre', df_filtered), ')^2+.')
+evaluate_model_change(Gross~., df_filtered, formula, df_filtered)
+```
+
+***Actor interactions***
+```{r}
+formula <- paste('Gross~(', build_formula_by_term('Actor', df_filtered), ')^2+.')
+evaluate_model_change(Gross~., df_filtered, formula, df_filtered)
+```
+
+***Writer interactions***
+```{r}
+formula <- paste('Gross~(', build_formula_by_term('Writer', df_filtered), ')^2+.')
+evaluate_model_change(Gross~., df_filtered, formula, df_filtered)
+```
+
+***Budget, Year, Runtime interaction***
+```{r}
+evaluate_model_change(Gross~., df_filtered, Gross~(Budget_bin+Year_bin+Runtime_bin)^2+., df_filtered)
+```
 
 
-evaluate_model_change('Gross~.', df_all_filtered, build_formula(a), df_all_filtered)
+### Production staff counts and description lengths
+```{r}
+# Try engineering new features
 
-evaluate_model_range('Gross~.^3', df_all_filtered)
+count_entries <- function(column) {
+  return(str_count(column, ',') + 1)
+}
 
-eval_fit(fit)
+# Try entity counts
+count_features <- c('Genre', 'Director', 'Writer', 'Actors', 'Language', 'Country')
+df_count <- as.data.frame(sapply(df[, count_features], count_entries))
+colnames(df_count) <- sapply(colnames(df_count), function(n) return(paste('Count', n)))
+evaluate_model_change(Gross~., df_filtered, Gross~., cbind(df_filtered, df_count))
 
-step <- stepAIC(fit, direction="both")
-step <- stepAIC(fit)
-step$anova # display results
-feature_selected_formula <- 'Gross ~ RatedR + `RatedPG-13` + `ProductionWarner Bros. Pictures` + 
-    Genre_Drama + Genre_Action + Genre_Adventure + Genre_Horror + 
-    Genre_Mystery + Country_UK + Country_Germany + imdbVotes + 
-    tomatoUserReviews + Budget + Year_bin + tomatoUserReviews_bin + 
-    RatedR:Genre_Drama + RatedR:Genre_Action + RatedR:Genre_Adventure + 
-    RatedR:Genre_Horror + RatedR:imdbVotes + RatedR:Budget + 
-    RatedR:Year_bin + `RatedPG-13`:`ProductionWarner Bros. Pictures` + 
-    `RatedPG-13`:Genre_Drama + `RatedPG-13`:Genre_Action + `RatedPG-13`:Genre_Horror + 
-    `RatedPG-13`:imdbVotes + `RatedPG-13`:tomatoUserReviews + 
-    `RatedPG-13`:Budget + `RatedPG-13`:Year_bin + `RatedPG-13`:tomatoUserReviews_bin + 
-    `ProductionWarner Bros. Pictures`:Genre_Drama + `ProductionWarner Bros. Pictures`:Genre_Action + 
-    `ProductionWarner Bros. Pictures`:Genre_Mystery + `ProductionWarner Bros. Pictures`:Country_UK + 
-    `ProductionWarner Bros. Pictures`:Country_Germany + `ProductionWarner Bros. Pictures`:tomatoUserReviews + 
-    `ProductionWarner Bros. Pictures`:Budget + `ProductionWarner Bros. Pictures`:Year_bin + 
-    `ProductionWarner Bros. Pictures`:tomatoUserReviews_bin + 
-    Genre_Drama:Genre_Adventure + Genre_Drama:Budget + Genre_Drama:Year_bin + 
-    Genre_Action:Genre_Adventure + Genre_Action:Country_UK + 
-    Genre_Action:imdbVotes + Genre_Action:tomatoUserReviews + 
-    Genre_Action:Budget + Genre_Action:Year_bin + Genre_Action:tomatoUserReviews_bin + 
-    Genre_Adventure:tomatoUserReviews + Genre_Adventure:Budget + 
-    Genre_Horror:Budget + Genre_Mystery:imdbVotes + Country_UK:imdbVotes + 
-    Country_UK:tomatoUserReviews_bin + Country_Germany:tomatoUserReviews + 
-    imdbVotes:Year_bin + imdbVotes:tomatoUserReviews_bin + tomatoUserReviews:Year_bin + 
-    tomatoUserReviews:tomatoUserReviews_bin + Budget:Year_bin + 
-    Budget:tomatoUserReviews_bin'
-evaluate_model_range(feature_selected_formula , df_final)
+# Try string lengths
+length_features <- c('Title', 'Plot', 'tomatoConsensus')
+df_length <- as.data.frame(sapply(df[, length_features], str_length))
+colnames(df_length) <- sapply(colnames(df_length), function(n) return(paste('Length', n)))
+evaluate_model_change(Gross~., df_filtered, Gross~., cbind(df_filtered, df_length))
+```
+
+
+### Ordered Rating scale
+```{r}
+# Try Rated scale
+rate_scale <- function(rating) {
+  ratings <- c('G', 'PG', 'PG-13', 'R', 'NC-17')
+  if (rating %in% ratings) {
+    return(which(ratings == rating))
+  } else {
+    return(6)
+  }
+}
+
+df_rating <- cbind(df_filtered)
+df_rating$rate_scale <- sapply(df$Rated, rate_scale)
+evaluate_model_change(Gross~., df_filtered, Gross~., df_rating)
+evaluate_model_range(Gross~., df_rating)
+```
+
+### Count of top Actors, Writers, Languages, Countries, Directors, and Production studios.
+```{r}
+# Try top count
+df_top <- cbind(df_filtered)
+df_top$top_actor_count <- rowSums(string_to_features(df, 'Actors', top=10, append=F))
+df_top$top_writer_count <- rowSums(string_to_features(df, 'Writer', top=100, append=F))
+df_top$top_language_count <- rowSums(string_to_features(df, 'Language', top=10, append=F))
+df_top$top_country_count <- rowSums(string_to_features(df, 'Country', top=5, append=F))
+df_top$top_director <- rowSums(factor_to_features(df, 'Director', top=100, append=F))
+df_top$top_production <- rowSums(factor_to_features(df, 'Production', top=10, append=F))
+
+evaluate_model_change(Gross~., df_filtered, Gross~., df_top)
+# evaluate_model(Gross~.^2, df_top)
+```
+### Genre featues reintroduced
+
+```{r}
+df_genre <- string_to_features(df, 'Genre', top=100, append=F)
+df_genre_eval <- merge(df_filtered, df_genre)
+evaluate_model_change(Gross~., df_filtered, Gross~., df_genre_eval, trials=10, max_time=120)
+evaluate_model_range(Gross~., df_genre_eval, trials=10, max_time=3000)
 ```
 
 
 **Q**: Explain what new features you designed and why you chose them.
 
 **A**: 
+
+A number of interaction models were evaluated, mixes of Genres, Actors, and Writers. The intuition was that movies with a mix of specific sets of Actors, Writers, or Genres might do beter than others. A custum pairwise interaction with Budget_bin, Year_bin, and Runtime_bin was also attempted to explore the possible relationships of Budget and Runtime over the years. While some of these models improved RMSE on the training set, none of them made a significant improvement on the test set.
+
+New features were created on character data indicating the number of elements (comma seperated values) and field lengths. This indicates the number of Writers, Directors, etc. that were invovled in a movie. The length transformation also indicates how much was written in the Plot and tomatoConsensus fields. Unfortunately, none of these new features contributed significantly to improving the model.
+
+A feature was created to capture ordering in the Rated feature as a numeric value, with G being the lowest and increasing from there. This new feature did not significantly improve the model either.
+
+Yet another feature was added that indicated the quantity of top N Actors, etc. that were associated with each movie. As an example, a movie could have 3 of the top 10 most prolific writers. This was calculated for Actors, Writers, Languages, Countries, Directors, and Production studios. Again, these new features did not improve the model performance.
+
+The final attempt was to reintroduce features that where previously filtered to reduce dementionality. In this final model, all Genres were captured in binary featues instead of limiting it to the top 10. The resulting model was able to reduce the test set RMSE to around 8.2e7. This leads to the belief that there are likely other predictive features in the dataset that would be discovered with an exhaustive, and potentially computationally costly, search. An effort was put into exploring recursive feature selection, but was abandoned in light of the computational time required given the number of features available.
